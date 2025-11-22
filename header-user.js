@@ -101,8 +101,9 @@ onAuthStateChanged(auth, async (user) => {
         dropdownMenu.insertBefore(itemPerfil, dropdownMenu.firstChild);
     }
 
-    // Panel Admin en el menú lateral si sos admin
-    if ((rol === "admin" || user.email === ADMIN_EMAIL) &&
+    // Panel Admin en el menú lateral si sos admin o broker
+    if (
+        (rol === "admin" || rol === "broker" || user.email === ADMIN_EMAIL) &&
         sideMenu &&
         !sideMenu.querySelector('a[href="admin.html"]')
     ) {

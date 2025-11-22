@@ -53,7 +53,8 @@ async function cargarTodo(uid) {
         const year = document.getElementById("filtro-anio").value; 
         
         // 1. Fetch Plan Individual y Tracking Individual
-        const docPlan = await getDoc(doc(db, "planificaciones", uid));
+        const docPlan = await getDoc(doc(db, "planificaciones", `${uid}_${year}`));
+
         if (docPlan.exists()) planAnual = docPlan.data();
 
         // Consulta de Tracking usando el año seleccionado

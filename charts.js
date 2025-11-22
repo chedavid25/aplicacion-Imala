@@ -1,7 +1,10 @@
-// charts.js - VERSIÓN FINAL: SIN RANKING DE OFICINA
+// charts.js - VERSIÓN FINAL: SIN RANKING DE OFICINA Y OPTIMIZADO
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+// Se importa 'query' y 'where' que son fundamentales para la optimización, aunque solo usemos 'doc' ahora
+// Los mantengo en el import por si en un futuro necesitas filtrar
+// import { query, where } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js"; 
 import { app } from "./firebase-config.js";
 
 const auth = getAuth(app);
@@ -10,11 +13,6 @@ const db = getFirestore(app);
 let planAnual = null;
 let trackingData = null;
 let charts = {}; 
-
-// VARIABLES GLOBALES DE RANKING ELIMINADAS
-// let allAgentsPlan = [];
-// let allAgentsTracking = {};
-// let allOfficeAgentsProcessed = []; 
 
 // CONFIG ESTACIONAL
 const CONFIG_OFICINAS = {
@@ -36,19 +34,22 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// --- FUNCIÓN DE FETCH DE DATOS (REDUCIDA) ---
+// --- FUNCIÓN DE FETCH DE DATOS (OPTIMIZADA) ---
 async function cargarTodo(uid) {
     try {
         const year = new Date().getFullYear();
         
-        // 1. Fetch Plan Individual y Tracking Individual (Datos del Agente)
+        // 1. Fetch Plan Individual y Tracking Individual (OPTIMIZADO: Lee solo 2 documentos, uno para plan y uno para tracking del agente actual)
+        
+        // Carga del plan del agente actual
         const docPlan = await getDoc(doc(db, "planificaciones", uid));
         if (docPlan.exists()) planAnual = docPlan.data();
 
+        // Carga del tracking del agente actual
         const docTrack = await getDoc(doc(db, "tracking", `${uid}_${year}`));
         if (docTrack.exists()) trackingData = docTrack.data();
 
-        // Carga de ALL data para ranking ELIMINADA
+        // **NOTA:** La lógica de carga de TODOS los planes/tracking de la base de datos (que era ineficiente) ha sido eliminada.
 
         actualizarDashboard();
 
@@ -59,14 +60,12 @@ async function cargarTodo(uid) {
 
 document.getElementById("filtro-periodo").addEventListener("change", actualizarDashboard);
 
-// --- FUNCIÓN DE RENDERIZADO PRINCIPAL (REDUCIDA) ---
+// --- FUNCIÓN DE RENDERIZADO PRINCIPAL (SIN CAMBIOS FUNCIONALES) ---
 function actualizarDashboard() {
     if (!planAnual) return;
     
     const periodo = document.getElementById("filtro-periodo").value;
     const datos = procesarDatos(periodo); // Datos del Agente actual
-
-    // Lógica de procesamiento de TODOS los agentes ELIMINADA
 
     // A. KPIs
     renderKPI("facturacion", datos.O_Fact, datos.R_Fact, true);
@@ -95,13 +94,10 @@ function actualizarDashboard() {
     dibujarEmbudo(datos);
     dibujarCaraCara(datos);
     dibujarMix(datos);
-    
-    // E. RANKING ELIMINADO
-    // renderRankings(allOfficeAgentsProcessed, planAnual.uid);
 }
 
 
-// --- FUNCIÓN DE CÁLCULO PRINCIPAL (SIN CAMBIOS, ya que solo calcula datos del agente actual) ---
+// --- FUNCIÓN DE CÁLCULO PRINCIPAL (SIN CAMBIOS) ---
 function procesarDatos(periodo) {
     let meses = [];
     const hoy = new Date();
@@ -187,10 +183,6 @@ function procesarDatos(periodo) {
 }
 
 
-// --- FUNCIÓN DE CÁLCULO PARA TODOS LOS AGENTES DE LA OFICINA ELIMINADA ---
-// function procesarDatosTodosAgentes(...) { ... }
-
-
 function renderKPI(id, obj, real, esDinero = false) {
     const pct = obj > 0 ? (real / obj) * 100 : 0;
     const elReal = document.getElementById(`kpi-${id}-real`);
@@ -222,11 +214,7 @@ function renderKPI(id, obj, real, esDinero = false) {
 }
 
 
-// --- FUNCIÓN RENDERIZAR RANKINGS ELIMINADA ---
-// function renderRankings(...) { ... }
-
-
-// --- GRÁFICOS (Mantenidos) ---
+// --- FUNCIONES DE GRÁFICOS (SIN CAMBIOS) ---
 
 function dibujarGauge(id, real, objetivo) {
     let rawPct = objetivo > 0 ? (real / objetivo) * 100 : 0;

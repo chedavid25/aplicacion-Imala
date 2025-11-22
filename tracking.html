@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Mi Seguimiento | Imalá</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="assets/images/favicon.ico">
+    
+    <link href="assets/css/bootstrap.min.css" id="bootstrap-style" rel="stylesheet" type="text/css" />
+    <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
+    <link href="assets/css/app.min.css" id="app-style" rel="stylesheet" type="text/css" />
+
+    <style>
+        /* Estilos para la Matriz de Carga */
+        .input-cell {
+            border: 1px solid #e9e9ef;
+            border-radius: 4px;
+            padding: 5px;
+            width: 100%;
+            text-align: center;
+            font-weight: 500;
+        }
+        .input-cell:focus {
+            border-color: #5156be;
+            outline: none;
+            background-color: #f8f9fa;
+        }
+        .table-nowrap td {
+            vertical-align: middle;
+        }
+        .bg-total {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="layout-wrapper">
+        
+        <header id="page-topbar">
+            <div class="navbar-header">
+                <div class="d-flex">
+                    <div class="navbar-brand-box">
+                        <a href="index.html" class="logo logo-dark">
+                            <span class="logo-lg">
+                                <img src="assets/images/logo-imala.png" alt="" height="24"> 
+                            </span>
+                        </a>
+                    </div>
+                </div>
+                <div class="d-flex">
+                    <div class="dropdown d-inline-block">
+                        <button type="button" class="btn header-item bg-light-subtle border-start border-end"
+                            id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span class="d-none d-xl-inline-block ms-1 fw-medium">Agente</span>
+                            <i class="mdi mdi-chevron-down d-none d-xl-inline-block"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end">
+                            <a class="dropdown-item text-danger" href="logout.html"><i class="mdi mdi-logout font-size-16 align-middle me-1"></i> Cerrar Sesión</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="vertical-menu">
+            <div data-simplebar class="h-100">
+                <div id="sidebar-menu">
+                    <ul class="metismenu list-unstyled" id="side-menu">
+                        <li class="menu-title">Menú</li>
+                        
+                        <li>
+                            <a href="index.html">
+                                <i data-feather="home"></i>
+                                <span>Planificador</span>
+                            </a>
+                        </li>
+                        
+                        <li>
+                            <a href="tracking.html" class="active">
+                                <i data-feather="target"></i>
+                                <span>Mi Trackeo</span>
+                            </a>
+                        </li>
+
+                        <li>
+                            <a href="charts.html">
+                                <i data-feather="pie-chart"></i>
+                                <span>Gráficos de Gestión</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="page-content">
+                <div class="container-fluid">
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm bg-primary text-white">
+                                <div class="card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-8">
+                                            <h4 class="text-white mb-1">Matriz de Gestión Mensual</h4>
+                                            <p class="text-white-50 mb-0">Carga tus resultados semana a semana.</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label text-white-50">Selecciona el Mes</label>
+                                            <select class="form-select form-select-lg" id="selector-mes">
+                                                <option value="0">Enero</option>
+                                                <option value="1">Febrero</option>
+                                                <option value="2">Marzo</option>
+                                                <option value="3">Abril</option>
+                                                <option value="4">Mayo</option>
+                                                <option value="5">Junio</option>
+                                                <option value="6">Julio</option>
+                                                <option value="7">Agosto</option>
+                                                <option value="8">Septiembre</option>
+                                                <option value="9">Octubre</option>
+                                                <option value="10">Noviembre</option>
+                                                <option value="11">Diciembre</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-nowrap align-middle mb-0">
+                                            <thead class="table-light text-center">
+                                                <tr>
+                                                    <th style="width: 200px;" class="text-start">Indicador</th>
+                                                    <th>Sem 1</th>
+                                                    <th>Sem 2</th>
+                                                    <th>Sem 3</th>
+                                                    <th>Sem 4</th>
+                                                    <th>Sem 5</th>
+                                                    <th class="bg-soft-primary">Total Real</th>
+                                                    <th class="bg-soft-warning">Objetivo</th>
+                                                    <th>%</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tabla-tracking-body">
+                                                <tr data-id="facturacion">
+                                                    <td class="fw-bold text-success"><i class="bx bx-dollar-circle me-1"></i> Facturación</td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td class="bg-total text-center"><span class="val-total">0</span></td>
+                                                    <td class="text-center"><span class="val-objetivo text-muted">-</span></td>
+                                                    <td class="text-center"><span class="badge bg-secondary val-pct">0%</span></td>
+                                                </tr>
+
+                                                <tr data-id="captaciones">
+                                                    <td class="fw-bold"><i class="bx bx-home-alt me-1"></i> Captaciones</td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td class="bg-total text-center"><span class="val-total">0</span></td>
+                                                    <td class="text-center"><span class="val-objetivo text-muted">-</span></td>
+                                                    <td class="text-center"><span class="badge bg-secondary val-pct">0%</span></td>
+                                                </tr>
+
+                                                <tr data-id="acm">
+                                                    <td class="fw-bold"><i class="bx bx-file me-1"></i> ACMs</td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td class="bg-total text-center"><span class="val-total">0</span></td>
+                                                    <td class="text-center"><span class="val-objetivo text-muted">-</span></td>
+                                                    <td class="text-center"><span class="badge bg-secondary val-pct">0%</span></td>
+                                                </tr>
+
+                                                <tr data-id="prelisting">
+                                                    <td class="fw-bold"><i class="bx bx-time me-1"></i> Pre-Listing</td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td class="bg-total text-center"><span class="val-total">0</span></td>
+                                                    <td class="text-center"><span class="val-objetivo text-muted">-</span></td>
+                                                    <td class="text-center"><span class="badge bg-secondary val-pct">0%</span></td>
+                                                </tr>
+
+                                                <tr class="table-light"><td colspan="9" class="fw-bold text-center font-size-11 text-uppercase">Actividad (Solo Real)</td></tr>
+
+                                                <tr data-id="caracara">
+                                                    <td class="fw-medium">Cara a Cara</td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td class="bg-total text-center"><span class="val-total">0</span></td>
+                                                    <td class="text-center"><span class="text-muted">-</span></td>
+                                                    <td class="text-center">-</td>
+                                                </tr>
+
+                                                <tr data-id="prebuy">
+                                                    <td class="fw-medium">Pre-Buy</td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td class="bg-total text-center"><span class="val-total">0</span></td>
+                                                    <td class="text-center"><span class="text-muted">-</span></td>
+                                                    <td class="text-center">-</td>
+                                                </tr>
+
+                                                 <tr data-id="reservas">
+                                                    <td class="fw-medium">Reservas</td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td><input type="number" class="input-cell" placeholder="0"></td>
+                                                    <td class="bg-total text-center"><span class="val-total">0</span></td>
+                                                    <td class="text-center"><span class="text-muted">-</span></td>
+                                                    <td class="text-center">-</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div class="mt-4 text-end">
+                                        <button id="btn-guardar-track" class="btn btn-success btn-lg">
+                                            <i class="bx bx-save me-1"></i> Guardar Avance del Mes
+                                        </button>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            
+            <footer class="footer">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-sm-6"><script>document.write(new Date().getFullYear())</script> © Imalá.</div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script src="assets/libs/jquery/jquery.min.js"></script>
+    <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/libs/metismenu/metisMenu.min.js"></script>
+    <script src="assets/libs/simplebar/simplebar.min.js"></script>
+    <script src="assets/libs/node-waves/waves.min.js"></script>
+    <script src="assets/libs/feather-icons/feather.min.js"></script>
+    <script src="assets/libs/pace-js/pace.min.js"></script>
+    <script src="assets/js/app.js"></script>
+
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="tracking.js"></script>
+
+</body>
+</html>

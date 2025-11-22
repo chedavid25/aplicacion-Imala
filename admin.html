@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Administrador | Imalá</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="assets/images/favicon.ico">
+    
+    <link href="assets/css/bootstrap.min.css" id="bootstrap-style" rel="stylesheet" type="text/css" />
+    <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
+    <link href="assets/css/app.min.css" id="app-style" rel="stylesheet" type="text/css" />
+    
+    <style>
+        .table-responsive { overflow-x: auto; }
+        .sticky-col { position: sticky; left: 0; background-color: #fff; z-index: 10; border-right: 2px solid #f0f0f0; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
+        .sticky-col-right { position: sticky; right: 0; background-color: #fff; z-index: 10; border-left: 2px solid #f0f0f0; }
+        .table-light th.sticky-col, .table-light th.sticky-col-right { background-color: #f8f9fa; }
+        .th-small { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .data-cell { font-size: 0.85rem; vertical-align: middle; }
+        .bg-soft-success { background-color: rgba(52, 195, 143, 0.15) !important; }
+        .bg-soft-warning { background-color: rgba(241, 180, 76, 0.15) !important; }
+        .bg-soft-danger { background-color: rgba(244, 106, 106, 0.15) !important; }
+        .bg-soft-primary { background-color: rgba(85, 110, 230, 0.15) !important; }
+        .bg-soft-info { background-color: rgba(52, 195, 143, 0.15) !important; }
+        
+        /* NUEVO ESTILO PARA SEMÁFORO NARANJA */
+        .bg-orange { background-color: #fd7e14 !important; color: white; }
+    </style>
+</head>
+
+<body>
+    <div id="layout-wrapper">
+        
+        <header id="page-topbar">
+            <div class="navbar-header">
+                <div class="d-flex">
+                    <div class="navbar-brand-box">
+                        <a href="index.html" class="logo logo-dark">
+                            <span class="logo-lg"><img src="assets/images/logo-imala.png" alt="" height="24"></span>
+                        </a>
+                    </div>
+                </div>
+                <div class="d-flex">
+                    <div class="dropdown d-inline-block">
+                        <button type="button" class="btn header-item bg-light-subtle border-start border-end"
+                            id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span class="d-none d-xl-inline-block ms-1 fw-medium">Administrador</span>
+                            <i class="mdi mdi-chevron-down d-none d-xl-inline-block"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end">
+                            <a class="dropdown-item" href="index.html"><i class="mdi mdi-home font-size-16 align-middle me-1"></i> Ir a mi Planificador</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item text-danger" href="logout.html"><i class="mdi mdi-logout font-size-16 align-middle me-1"></i> Cerrar Sesión</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="vertical-menu">
+            <div data-simplebar class="h-100">
+                <div id="sidebar-menu">
+                    <ul class="metismenu list-unstyled" id="side-menu">
+                        <li class="menu-title">Panel de Control</li>
+                        <li><a href="admin.html" class="active"><i data-feather="bar-chart-2"></i><span>Tablero de Gestión</span></a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="page-content">
+                <div class="container-fluid">
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm bg-soft-primary">
+                                <div class="card-body">
+                                    <div class="row align-items-end">
+                                        <div class="col-md-3"><label class="form-label fw-bold">Oficina</label><select class="form-select" id="filtro-oficina"><option value="Todas">Todas las Oficinas</option><option value="RE/MAX BIG">RE/MAX BIG</option><option value="RE/MAX FORUM">RE/MAX FORUM</option><option value="RE/MAX FLOR">RE/MAX FLOR</option><option value="RE/MAX ACUERDO">RE/MAX ACUERDO</option><option value="CROAR PROPIEDADES">CROAR PROPIEDADES</option></select></div>
+                                        <div class="col-md-2"><label class="form-label fw-bold">Año</label><select class="form-select" id="filtro-anio"><option value="2025" selected>2025</option><option value="2026">2026</option></select></div>
+                                        <div class="col-md-2"><label class="form-label fw-bold">Período</label><select class="form-select" id="filtro-periodo"><option value="anual">Total Año</option><option value="acumulado">Acumulado (YTD)</option><optgroup label="Semestres"><option value="S1">1º Semestre</option><option value="S2">2º Semestre</option></optgroup><optgroup label="Trimestres"><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></optgroup><optgroup label="Meses"><option value="M1">Ene</option><option value="M2">Feb</option><option value="M3">Mar</option><option value="M4">Abr</option><option value="M5">May</option><option value="M6">Jun</option><option value="M7">Jul</option><option value="M8">Ago</option><option value="M9">Sep</option><option value="M10">Oct</option><option value="M11">Nov</option><option value="M12">Dic</option><option value="mes_actual" selected>Mes Actual</option></optgroup></select></div>
+                                        <div class="col-md-3"><label class="form-label fw-bold">Ordenar Por %</label><select class="form-select" id="filtro-orden"><option value="pct_fact_desc">Mayor % Facturación</option><option value="pct_trans_desc">Mayor % Transacciones</option><option value="pct_capt_desc">Mayor % Captación</option><option value="pct_acm_desc">Mayor % ACM</option><option value="pct_pre_desc">Mayor % Pre-Listing</option><hr><option value="real_fact_desc">Facturación Real ($)</option><option value="obj_fact_desc">Objetivo Planificado ($)</option></select></div>
+                                        <div class="col-md-2 text-end"><button class="btn btn-primary w-100" id="btn-actualizar"><i class="mdi mdi-refresh"></i> Actualizar</button></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="kpi-container"><div class="text-center p-3"><i class="mdi mdi-spin mdi-loading"></i> Calculando totales...</div></div>
+
+                    <div class="row">
+                        <div class="col-xl-6"><div class="card shadow-sm"><div class="card-body"><h4 class="card-title mb-3">Evolución Facturación (Oficina)</h4><div id="chart-office-fact" class="apex-charts" dir="ltr"></div></div></div></div>
+                        <div class="col-xl-6"><div class="card shadow-sm"><div class="card-body"><h4 class="card-title mb-3">Evolución Captaciones (Oficina)</h4><div id="chart-office-capt" class="apex-charts" dir="ltr"></div></div></div></div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card shadow-sm">
+                                <div class="card-header d-flex justify-content-between align-items-center bg-white"><h4 class="card-title mb-0">Detalle por Agente</h4><div><button class="btn btn-sm btn-success me-1" id="btn-excel"><i class="mdi mdi-file-excel"></i> Excel</button><button class="btn btn-sm btn-danger" id="btn-pdf"><i class="mdi mdi-file-pdf"></i> PDF</button></div></div>
+                                <div class="card-body p-0"><div class="table-responsive"><table class="table table-bordered table-striped table-nowrap mb-0 align-middle text-center">
+                                    <thead class="table-light"><tr><th class="sticky-col text-start" rowspan="2" style="min-width: 160px;">Agente</th><th colspan="1" class="bg-soft-success">Facturación ($)</th><th colspan="1">Trans. Total</th><th colspan="1">Trans. Propias</th><th colspan="1">Trans. Búsq.</th><th colspan="3">Captaciones</th><th colspan="3">ACMs</th><th colspan="3">Pre-Listings</th><th class="bg-soft-warning" rowspan="2">C.a.C</th><th class="bg-soft-warning" rowspan="2">Pre-Buy</th><th class="bg-soft-warning" rowspan="2">Res</th><th rowspan="2" class="sticky-col-right">Edit</th></tr>
+                                    <tr class="th-small"><th>Obj | Real | <span class="text-primary">%</span></th><th>Obj | Real | <span class="text-primary">%</span></th><th>Obj | Real | <span class="text-primary">%</span></th><th>Obj | Real | <span class="text-primary">%</span></th><th>Obj</th><th>Real</th><th class="text-primary">%</th><th>Obj</th><th>Real</th><th class="text-primary">%</th><th>Obj</th><th>Real</th><th class="text-primary">%</th></tr></thead>
+                                    <tbody id="tabla-agentes-body"><tr><td colspan="18" class="text-center p-4">Cargando datos...</td></tr></tbody>
+                                </table></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-xl-6"><div class="card shadow-sm border-0"><div class="card-header bg-transparent border-bottom"><h5 class="card-title mb-0">🏆 Top 5: Facturación (Real)</h5></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th class="text-center" style="width: 60px;">#</th><th>Agente</th><th class="text-end">Total</th></tr></thead><tbody id="rank-fact-body"></tbody></table></div></div></div></div>
+                        <div class="col-xl-6"><div class="card shadow-sm border-0"><div class="card-header bg-transparent border-bottom"><h5 class="card-title mb-0">⭐ Top 5: Captaciones (Real)</h5></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th class="text-center" style="width: 60px;">#</th><th>Agente</th><th class="text-end">Total</th></tr></thead><tbody id="rank-capt-body"></tbody></table></div></div></div></div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card shadow-sm">
+                                <div class="card-header bg-white border-bottom">
+                                    <h5 class="card-title mb-0 text-primary">🚦 Semáforo de Salud del Negocio (Facturación vs Captación)</h5>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Agente</th>
+                                                    <th class="text-center">Cumplimiento Facturación</th>
+                                                    <th class="text-center">Cumplimiento Captación</th>
+                                                    <th class="text-center">Estado del Negocio</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="semaforo-body">
+                                                </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <footer class="footer"><div class="container-fluid"><div class="row"><div class="col-sm-6"><script>document.write(new Date().getFullYear())</script> © Imalá.</div></div></div></footer>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalEditar" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Editar: <span id="modal-nombre-agente" class="text-primary"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" id="edit-uid"><div class="row"><div class="col-md-6 mb-3"><label>Oficina</label><select class="form-select" id="edit-oficina"><option>RE/MAX BIG</option><option>RE/MAX FORUM</option><option>RE/MAX FLOR</option><option>RE/MAX ACUERDO</option><option>CROAR PROPIEDADES</option></select></div><div class="col-md-6 mb-3"><label>Objetivo Anual ($)</label><input type="number" class="form-control" id="edit-objetivo"></div></div><h6 class="text-muted">Efectividades (%)</h6><div class="row"><div class="col-md-4 mb-3"><label>Pre > ACM</label><input type="number" class="form-control" id="edit-efec-pre"></div><div class="col-md-4 mb-3"><label>ACM > Capt</label><input type="number" class="form-control" id="edit-efec-acm"></div><div class="col-md-4 mb-3"><label>Capt > Venta</label><input type="number" class="form-control" id="edit-efec-capt"></div></div><div class="row"><div class="col-md-6 mb-3"><label>% Listing Propio</label><input type="number" class="form-control" id="edit-efec-propio"></div><div class="col-md-6 mb-3"><label>% Búsquedas</label><input type="number" class="form-control" id="edit-efec-busq"></div></div></div><div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button><button type="button" class="btn btn-primary" id="btn-guardar-cambios">Guardar</button></div></div></div></div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/metismenu"></script>
+    <script src="https://cdn.jsdelivr.net/npm/simplebar@latest/dist/simplebar.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/node-waves/dist/waves.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pace-js@latest/pace.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="assets/js/app.js"></script>
+
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="admin.js"></script>
+</body>
+</html>

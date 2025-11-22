@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Mis Gráficos | Imalá</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="assets/images/favicon.ico">
+    
+    <link href="assets/css/bootstrap.min.css" id="bootstrap-style" rel="stylesheet" type="text/css" />
+    <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
+    <link href="assets/css/app.min.css" id="app-style" rel="stylesheet" type="text/css" />
+    
+    <style>
+        /* DEFINICIÓN DE VARIABLES RAÍZ */
+        :root {
+            --color-primario: #556ee6; /* Color primario Base */
+        }
+        
+        .card-h-100 { height: 100%; }
+        .apex-charts { min-height: 100px !important; }
+        
+        /* Uso de la variable para colores que ya usaban 'primary' */
+        .bg-soft-primary { background-color: rgba(var(--color-primario), 0.15) !important; }
+
+        /* REGLAS PARA CLASES DE TEXTO Y FONDO */
+        .text-primary {
+            color: var(--color-primario) !important;
+        }
+
+        /* Estilo Moderno para Tarjeta KPI */
+        .kpi-card-modern {
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+        .kpi-card-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important;
+        }
+        /* Estilos Semáforo (Solo para visualización en el navegador) */
+        .border-success { border-color: #34c38f !important; }
+        .border-warning { border-color: #f1b44c !important; }
+        .border-danger { border-color: #f46a6a !important; }
+    </style>
+</head>
+
+<body>
+    <div id="layout-wrapper">
+        
+        <header id="page-topbar">
+            <div class="navbar-header">
+                <div class="d-flex">
+                    <div class="navbar-brand-box">
+                        <a href="index.html" class="logo logo-dark">
+                            <span class="logo-lg"><img src="assets/images/logo-imala.png" alt="" height="24"></span>
+                        </a>
+                    </div>
+                </div>
+                <div class="d-flex">
+                    <div class="dropdown d-inline-block">
+                        <button type="button" class="btn header-item bg-light-subtle border-start border-end"
+                            id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span class="d-none d-xl-inline-block ms-1 fw-medium">Agente</span>
+                            <i class="mdi mdi-chevron-down d-none d-xl-inline-block"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end">
+                            <a class="dropdown-item text-danger" href="logout.html"><i class="mdi mdi-logout font-size-16 align-middle me-1"></i> Cerrar Sesión</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="vertical-menu">
+            <div data-simplebar class="h-100">
+                <div id="sidebar-menu">
+                    <ul class="metismenu list-unstyled" id="side-menu">
+                        <li class="menu-title">Menú</li>
+                        <li><a href="index.html"><i data-feather="home"></i><span>Planificador</span></a></li>
+                        <li><a href="tracking.html"><i data-feather="target"></i><span>Mi Seguimiento</span></a></li>
+                        <li><a href="charts.html" class="active"><i data-feather="pie-chart"></i><span>Gráficos de Gestión</span></a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="page-content">
+                <div class="container-fluid">
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm bg-soft-primary">
+                                <div class="card-body p-3">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <h5 class="mb-0 text-primary"><i class="mdi mdi-chart-timeline me-2"></i>Tablero de Resultados</h5>
+                                        <div class="d-flex align-items-center">
+                                            <label class="me-2 fw-bold mb-0">Período:</label>
+                                            <select class="form-select form-select-sm" id="filtro-periodo" style="width: 200px;">
+                                                <option value="mes_actual" selected>Mes Actual</option>
+                                                
+                                                <optgroup label="Meses Individuales">
+                                                    <option value="M0">Enero</option>
+                                                    <option value="M1">Febrero</option>
+                                                    <option value="M2">Marzo</option>
+                                                    <option value="M3">Abril</option>
+                                                    <option value="M4">Mayo</option>
+                                                    <option value="M5">Junio</option>
+                                                    <option value="M6">Julio</option>
+                                                    <option value="M7">Agosto</option>
+                                                    <option value="M8">Septiembre</option>
+                                                    <option value="M9">Octubre</option>
+                                                    <option value="M10">Noviembre</option>
+                                                    <option value="M11">Diciembre</option>
+                                                </optgroup>
+
+                                                <optgroup label="Trimestres">
+                                                    <option value="Q1">Q1 (Ene-Mar)</option>
+                                                    <option value="Q2">Q2 (Abr-Jun)</option>
+                                                    <option value="Q3">Q3 (Jul-Sep)</option>
+                                                    <option value="Q4">Q4 (Oct-Dic)</option>
+                                                </optgroup>
+
+                                                <optgroup label="Semestres">
+                                                    <option value="S1">1º Semestre</option>
+                                                    <option value="S2">2º Semestre</option>
+                                                </optgroup>
+
+                                                <option value="acumulado">Acumulado (YTD)</option>
+                                                <option value="anual">Total Año (2025)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-facturacion">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="text-muted mb-1 fw-medium">Facturación</p>
+                                            <h4 class="mb-0" id="kpi-facturacion-real">$0</h4>
+                                        </div>
+                                        <span class="badge rounded-pill p-2" id="badge-facturacion">0%</span>
+                                    </div>
+                                    <div class="text-muted font-size-12 mt-3">
+                                        Meta: <span id="kpi-facturacion-obj">$0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-ventas">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="text-muted mb-1 fw-medium">Transacciones Totales</p>
+                                            <h4 class="mb-0" id="kpi-ventas-real">0</h4>
+                                        </div>
+                                        <span class="badge rounded-pill p-2" id="badge-ventas">0%</span>
+                                    </div>
+                                    <div class="text-muted font-size-12 mt-3">
+                                        Meta: <span id="kpi-ventas-obj">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-propias">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="text-muted mb-1 fw-medium">Ventas Propias</p>
+                                            <h4 class="mb-0" id="kpi-propias-real">0</h4>
+                                        </div>
+                                        <span class="badge rounded-pill p-2" id="badge-propias">0%</span>
+                                    </div>
+                                    <div class="text-muted font-size-12 mt-3">
+                                        Meta: <span id="kpi-propias-obj">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-busquedas">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="text-muted mb-1 fw-medium">Ventas Búsquedas</p>
+                                            <h4 class="mb-0" id="kpi-busquedas-real">0</h4>
+                                        </div>
+                                        <span class="badge rounded-pill p-2" id="badge-busquedas">0%</span>
+                                    </div>
+                                    <div class="text-muted font-size-12 mt-3">
+                                        Meta: <span id="kpi-busquedas-obj">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-capt">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="text-muted mb-1 fw-medium">Captaciones</p>
+                                            <h4 class="mb-0" id="kpi-capt-real">0</h4>
+                                        </div>
+                                        <span class="badge rounded-pill p-2" id="badge-capt">0%</span>
+                                    </div>
+                                    <div class="text-muted font-size-12 mt-3">
+                                        Meta: <span id="kpi-capt-obj">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-acm">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="text-muted mb-1 fw-medium">ACMs Entregados</p>
+                                            <h4 class="mb-0" id="kpi-acm-real">0</h4>
+                                        </div>
+                                        <span class="badge rounded-pill p-2" id="badge-acm">0%</span>
+                                    </div>
+                                    <div class="text-muted font-size-12 mt-3">
+                                        Meta: <span id="kpi-acm-obj">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-prelist">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="text-muted mb-1 fw-medium">Pre-Listings</p>
+                                            <h4 class="mb-0" id="kpi-prelist-real">0</h4>
+                                        </div>
+                                        <span class="badge rounded-pill p-2" id="badge-prelist">0%</span>
+                                    </div>
+                                    <div class="text-muted font-size-12 mt-3">
+                                        Meta: <span id="kpi-prelist-obj">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm border-info">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <p class="text-muted mb-1 fw-medium">Reservas</p>
+                                            <h5 class="mb-0" id="kpi-reservas">0</h5>
+                                        </div>
+                                        <div>
+                                            <p class="text-muted mb-1 fw-medium">Pre-Buy</p>
+                                            <h5 class="mb-0" id="kpi-prebuy">0</h5>
+                                        </div>
+                                    </div>
+                                    <div class="text-muted font-size-12 mt-3">Datos solo reales</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5 class="card-title mb-3">Cumplimiento del Período (%)</h5>
+                        </div>
+                        <div class="col">
+                            <div class="card"><div class="card-body p-2 text-center"><div id="gauge-fact" class="apex-charts"></div><p class="mt-2 mb-0 fw-bold">Facturación</p></div></div>
+                        </div>
+                        <div class="col">
+                            <div class="card"><div class="card-body p-2 text-center"><div id="gauge-ventas" class="apex-charts"></div><p class="mt-2 mb-0 fw-bold">Transacciones</p></div></div>
+                        </div>
+                        <div class="col">
+                            <div class="card"><div class="card-body p-2 text-center"><div id="gauge-capt" class="apex-charts"></div><p class="mt-2 mb-0 fw-bold">Captaciones</p></div></div>
+                        </div>
+                        <div class="col">
+                            <div class="card"><div class="card-body p-2 text-center"><div id="gauge-acm" class="apex-charts"></div><p class="mt-2 mb-0 fw-bold">ACMs</p></div></div>
+                        </div>
+                        <div class="col">
+                            <div class="card"><div class="card-body p-2 text-center"><div id="gauge-pre" class="apex-charts"></div><p class="mt-2 mb-0 fw-bold">Pre-List</p></div></div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4 class="card-title mb-0">Tendencia Mensual: Facturación vs Objetivo</h4>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-linea-tiempo" class="apex-charts" dir="ltr"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4 class="card-title mb-0">Tendencia Mensual: Captaciones vs Objetivo</h4>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-linea-captaciones" class="apex-charts" dir="ltr"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-xl-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h4 class="card-title mb-0">Embudo & Efectividad</h4>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-funnel" class="apex-charts" dir="ltr"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h4 class="card-title mb-0">Cara a Cara</h4>
+                                </div>
+                                <div class="card-body text-center">
+                                    <div id="chart-caracara" class="apex-charts" dir="ltr"></div>
+                                    <p class="text-muted mt-2">Meta: <span id="meta-caracara-text">10</span> reuniones</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h4 class="card-title mb-0">Origen Ventas</h4>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-mix" class="apex-charts" dir="ltr"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            
+            <footer class="footer">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-sm-6"><script>document.write(new Date().getFullYear())</script> © Imalá.</div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script src="assets/libs/jquery/jquery.min.js"></script>
+    <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/libs/metismenu/metisMenu.min.js"></script>
+    <script src="assets/libs/simplebar/simplebar.min.js"></script>
+    <script src="assets/libs/node-waves/waves.min.js"></script>
+    <script src="assets/libs/feather-icons/feather.min.js"></script>
+    <script src="assets/libs/pace-js/pace.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="assets/js/app.js"></script>
+
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="charts.js"></script>
+
+</body>
+</html>

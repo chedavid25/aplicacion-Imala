@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Registro | Imalá</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="assets/images/favicon.ico">
+    <link href="assets/css/bootstrap.min.css" id="bootstrap-style" rel="stylesheet" type="text/css" />
+    <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
+    <link href="assets/css/app.min.css" id="app-style" rel="stylesheet" type="text/css" />
+</head>
+
+<body>
+    <div class="auth-page">
+        <div class="container-fluid p-0">
+            <div class="row g-0">
+                
+                <div class="col-xxl-3 col-lg-4 col-md-5">
+                    <div class="auth-full-page-content d-flex p-sm-5 p-4">
+                        <div class="w-100">
+                            <div class="d-flex flex-column h-100">
+                                
+                                <div class="mb-4 mb-md-5 text-center">
+                                    <a href="index.html" class="d-block auth-logo">
+                                        <img src="assets/images/logo-imala.png" alt="" height="50"> 
+                                    </a>
+                                </div>
+
+                                <div class="auth-content my-auto">
+                                    <div class="text-center">
+                                        <h5 class="mb-0">Crear Cuenta</h5>
+                                        <p class="text-muted mt-2">Solo personal autorizado.</p>
+                                    </div>
+                                    
+                                    <form class="mt-4 pt-2">
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label text-danger">Código de Invitación</label>
+                                            <input type="password" class="form-control" id="reg-codigo" placeholder="Ingresa el código de la empresa" required>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Tu Oficina</label>
+                                            <select class="form-select" id="reg-oficina">
+                                                <option value="" selected disabled>Selecciona una opción...</option>
+                                                <option value="RE/MAX BIG">RE/MAX BIG</option>
+                                                <option value="RE/MAX FORUM">RE/MAX FORUM</option>
+                                                <option value="RE/MAX FLOR">RE/MAX FLOR</option>
+                                                <option value="RE/MAX ACUERDO">RE/MAX ACUERDO</option>
+                                                <option value="CROAR PROPIEDADES">CROAR PROPIEDADES</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mt-4 text-center">
+                                            <h5 class="font-size-14 mb-3 text-muted fw-medium">- Opción Rápida -</h5>
+                                            <ul class="list-inline">
+                                                <li class="list-inline-item">
+                                                    <button type="button" class="btn btn-danger w-100 waves-effect waves-light" id="btn-google">
+                                                        <i class="mdi mdi-google me-2"></i> Registrarse con Google
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        </div>
+
+                                        <div class="mt-4 text-center">
+                                            <h5 class="font-size-14 mb-3 text-muted fw-medium">- O con Email -</h5>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Nombre y Apellido</label>
+                                            <input type="text" class="form-control" id="reg-nombre" placeholder="Ej: Juan Pérez">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Email</label>
+                                            <input type="email" class="form-control" id="reg-email" placeholder="tu@email.com">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Contraseña</label>
+                                            <input type="password" class="form-control" id="reg-password" placeholder="Crea una contraseña">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary w-100 waves-effect waves-light" type="button" id="btn-register">Registrarme con Email</button>
+                                        </div>
+                                    </form>
+
+                                    <div class="mt-5 text-center">
+                                        <p class="text-muted mb-0">¿Ya tienes cuenta? <a href="login.html" class="text-primary fw-semibold"> Inicia Sesión </a> </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-xxl-9 col-lg-8 col-md-7">
+                    <div class="auth-bg p-4 d-flex align-items-center">
+                        <div class="bg-overlay bg-primary"></div>
+                        <ul class="bg-bubbles"><li></li><li></li><li></li><li></li><li></li></ul>
+                        <div class="row justify-content-center align-items-center w-100">
+                            <div class="col-xl-8"> 
+                                <div class="p-0 p-sm-4 px-xl-0 text-center">
+                                    <h2 class="text-white mb-4 fw-bold display-6">Bienvenido al Planificador</h2>
+                                    <p class="text-white-50 fs-4">Gestiona tus objetivos de manera profesional.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/libs/jquery/jquery.min.js"></script>
+    <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/libs/metismenu/metisMenu.min.js"></script>
+    <script src="assets/libs/simplebar/simplebar.min.js"></script>
+    <script src="assets/libs/node-waves/waves.min.js"></script>
+    <script src="assets/libs/feather-icons/feather.min.js"></script>
+    <script src="assets/libs/pace-js/pace.min.js"></script>
+
+    <script type="module">
+        import { getAuth, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { app } from "./firebase-config.js";
+
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        // --- CONFIGURACIÓN DE SEGURIDAD ---
+        const CODIGO_SECRETO = "IMALA2025"; 
+
+        // Validación auxiliar
+        function validarIngreso() {
+            const oficina = document.getElementById("reg-oficina").value;
+            const codigoIngresado = document.getElementById("reg-codigo").value;
+
+            if (!codigoIngresado) {
+                alert("⚠️ Debes ingresar el Código de Invitación para registrarte.");
+                document.getElementById("reg-codigo").focus();
+                return false;
+            }
+
+            if (codigoIngresado !== CODIGO_SECRETO) {
+                alert("⛔ CÓDIGO INCORRECTO. Solicítalo a tu administrador.");
+                return false;
+            }
+
+            if (!oficina) {
+                alert("⚠️ Por favor, selecciona tu OFICINA.");
+                document.getElementById("reg-oficina").focus();
+                return false;
+            }
+            return true;
+        }
+
+        // --- REGISTRO CON GOOGLE ---
+        document.getElementById("btn-google").addEventListener("click", async () => {
+            if (!validarIngreso()) return; 
+
+            try {
+                const result = await signInWithPopup(auth, googleProvider);
+                const user = result.user;
+                const oficina = document.getElementById("reg-oficina").value;
+
+                const docRef = doc(db, "planificaciones", user.uid);
+                const docSnap = await getDoc(docRef);
+
+                if (!docSnap.exists()) {
+                    await setDoc(docRef, {
+                        nombreAgente: user.displayName || "Agente Google",
+                        oficina: oficina,
+                        emailUsuario: user.email,
+                        fechaRegistro: new Date().toISOString(),
+                        objetivoAnual: 0
+                    });
+                }
+                window.location.href = "index.html";
+
+            } catch (error) {
+                console.error("Error Google:", error);
+                alert("Error: " + error.message);
+            }
+        });
+
+        // --- REGISTRO CON EMAIL ---
+        document.getElementById("btn-register").addEventListener("click", async () => {
+            if (!validarIngreso()) return; 
+
+            const nombre = document.getElementById("reg-nombre").value;
+            const email = document.getElementById("reg-email").value;
+            const password = document.getElementById("reg-password").value;
+            const oficina = document.getElementById("reg-oficina").value;
+
+            if (!nombre || !email || !password) {
+                alert("Completa todos los campos.");
+                return;
+            }
+
+            const btn = document.getElementById("btn-register");
+            btn.innerText = "Verificando...";
+            btn.disabled = true;
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                await setDoc(doc(db, "planificaciones", user.uid), {
+                    nombreAgente: nombre,
+                    oficina: oficina,
+                    emailUsuario: email,
+                    fechaRegistro: new Date().toISOString(),
+                    objetivoAnual: 0
+                });
+
+                alert("¡Cuenta creada con éxito!");
+                window.location.href = "index.html";
+
+            } catch (error) {
+                let mensaje = "Error al registrarse.";
+                if (error.code === 'auth/email-already-in-use') mensaje = "Este email ya está registrado.";
+                if (error.code === 'auth/weak-password') mensaje = "La contraseña es muy débil.";
+                alert(mensaje);
+                btn.innerText = "Registrarme con Email";
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

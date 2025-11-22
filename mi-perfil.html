@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Mi Perfil | Imalá</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="assets/css/bootstrap.min.css" id="bootstrap-style" rel="stylesheet" type="text/css" />
+    <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
+    <link href="assets/css/app.min.css" id="app-style" rel="stylesheet" type="text/css" />
+</head>
+
+<body>
+    <div id="layout-wrapper">
+        
+        <header id="page-topbar">
+            <div class="navbar-header">
+                <div class="d-flex">
+                    <div class="navbar-brand-box">
+                        <a href="index.html" class="logo logo-dark">
+                            <span class="logo-sm"><img src="assets/images/logo-imala.png" alt="" height="24"></span>
+                            <span class="logo-lg"><img src="assets/images/Letras Imala.png" alt="" height="24"></span>
+                        </a>
+                        <a href="index.html" class="logo logo-light">
+                            <span class="logo-sm"><img src="assets/images/logo-imala.png" alt="" height="24"></span>
+                            <span class="logo-lg"><img src="assets/images/Letras Imala.png" alt="" height="24"></span>
+                        </a>
+                    </div>
+                    <button type="button" class="btn btn-sm px-3 font-size-16 header-item" id="vertical-menu-btn">
+                        <i class="fa fa-fw fa-bars"></i>
+                    </button>
+                </div>
+
+                <div class="d-flex">
+                    <div class="dropdown d-inline-block">
+                        <button type="button" class="btn header-item bg-light-subtle border-start border-end"
+                            id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true"
+                            aria-expanded="false">
+                            <img class="rounded-circle header-profile-user" id="header-img" src="assets/images/users/avatar-1.jpg"
+                                alt="Header Avatar">
+                            <span class="d-none d-xl-inline-block ms-1 fw-medium" id="header-name">Cargando...</span>
+                            <i class="mdi mdi-chevron-down d-none d-xl-inline-block"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end">
+                            <a class="dropdown-item" href="mi-perfil.html"><i class="mdi mdi-account-circle font-size-16 align-middle me-1"></i> Mi Perfil</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#" id="btn-logout"><i class="mdi mdi-logout font-size-16 align-middle me-1"></i> Cerrar Sesión</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="vertical-menu">
+            <div data-simplebar class="h-100">
+                <div id="sidebar-menu">
+                    <ul class="metismenu list-unstyled" id="side-menu">
+                        <li class="menu-title" data-key="t-menu">Menú Principal</li>
+                        <li>
+                            <a href="index.html">
+                                <i data-feather="home"></i> <span>Planificador</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="tracking.html">
+                                <i data-feather="target"></i> <span>Mi trackeo</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="charts.html">
+                                <i data-feather="pie-chart"></i> <span>Gráficos de Gestión</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="page-content">
+                <div class="container-fluid">
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+                                <h4 class="mb-sm-0 font-size-18">Mi Perfil</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-xl-8">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h4 class="card-title mb-4">Editar Información Personal</h4>
+                                    
+                                    <form id="form-perfil">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="inputNombre" class="form-label">Nombre Completo</label>
+                                                    <input type="text" class="form-control" id="inputNombre" placeholder="Tu nombre">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="inputTelefono" class="form-label">Teléfono</label>
+                                                    <input type="text" class="form-control" id="inputTelefono" placeholder="+54 9 ...">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="inputEmail" class="form-label">Email (No editable)</label>
+                                            <input type="email" class="form-control bg-light" id="inputEmail" readonly>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="inputFoto" class="form-label">URL de Foto de Perfil</label>
+                                            <input type="text" class="form-control" id="inputFoto" placeholder="Pega aquí el link de tu foto">
+                                            <small class="text-muted">Puedes usar un link de Google Drive, LinkedIn o cualquier imagen pública.</small>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary" id="btn-guardar">
+                                            <i class="bx bx-save me-1"></i> Guardar Cambios
+                                        </button>
+                                    </form>
+
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-xl-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h4 class="card-title mb-4">Vista Previa</h4>
+                                    <div class="mb-4">
+                                        <img class="rounded-circle avatar-xl" id="preview-img" src="assets/images/users/avatar-1.jpg" alt="Foto Perfil" style="object-fit: cover;">
+                                    </div>
+                                    <h5 class="font-size-16 mb-1" id="preview-name">Usuario</h5>
+                                    <p class="text-muted mb-0">Agente Inmobiliario</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div> 
+            </div>
+
+            <footer class="footer">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <script>document.write(new Date().getFullYear())</script> © Imalá.
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script src="assets/libs/jquery/jquery.min.js"></script>
+    <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/libs/metismenu/metisMenu.min.js"></script>
+    <script src="assets/libs/simplebar/simplebar.min.js"></script>
+    <script src="assets/libs/node-waves/waves.min.js"></script>
+    <script src="assets/libs/feather-icons/feather.min.js"></script>
+    <script src="assets/js/app.js"></script>
+
+    <script type="module">
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { app } from "./firebase-config.js";
+
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Referencias del formulario
+        const inputNombre = document.getElementById('inputNombre');
+        const inputTelefono = document.getElementById('inputTelefono');
+        const inputEmail = document.getElementById('inputEmail');
+        const inputFoto = document.getElementById('inputFoto');
+        const previewName = document.getElementById('preview-name');
+        const previewImg = document.getElementById('preview-img');
+        const btnGuardar = document.getElementById('btn-guardar');
+
+        // Referencias del Header (Barra superior)
+        const headerName = document.getElementById('header-name');
+        const headerImg = document.getElementById('header-img');
+        const btnLogout = document.getElementById('btn-logout');
+
+        // 1. Cargar datos al entrar
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                inputEmail.value = user.email; // El email viene de Google/Auth
+
+                const docRef = doc(db, "planificaciones", user.uid);
+                try {
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        
+                        // Llenar inputs
+                        const nombreReal = data.nombreAgente || user.displayName || "Agente";
+                        const fotoReal = data.fotoPerfil || user.photoURL || "assets/images/users/avatar-1.jpg";
+
+                        inputNombre.value = data.nombreAgente || "";
+                        inputTelefono.value = data.telefono || "";
+                        inputFoto.value = data.fotoPerfil || "";
+                        
+                        // Actualizar Vista Previa de la tarjeta
+                        previewName.textContent = nombreReal;
+                        previewImg.src = fotoReal;
+
+                        // Actualizar Header (Barra superior)
+                        if(headerName) headerName.textContent = nombreReal;
+                        if(headerImg) headerImg.src = fotoReal;
+                    }
+                } catch (e) {
+                    console.error("Error cargando perfil:", e);
+                }
+            } else {
+                window.location.href = "login.html";
+            }
+        });
+
+        // 2. Guardar cambios
+        document.getElementById('form-perfil').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = auth.currentUser;
+            if (!user) return;
+
+            btnGuardar.textContent = "Guardando...";
+            btnGuardar.disabled = true;
+
+            const datosActualizados = {
+                nombreAgente: inputNombre.value,
+                telefono: inputTelefono.value,
+                fotoPerfil: inputFoto.value
+            };
+
+            const docRef = doc(db, "planificaciones", user.uid);
+
+            try {
+                await updateDoc(docRef, datosActualizados);
+                alert("¡Perfil actualizado con éxito!");
+                
+                // Actualizar visualmente sin recargar
+                previewName.textContent = inputNombre.value;
+                if(inputFoto.value) {
+                    previewImg.src = inputFoto.value;
+                    headerImg.src = inputFoto.value;
+                }
+                headerName.textContent = inputNombre.value;
+
+                btnGuardar.textContent = "Guardar Cambios";
+                btnGuardar.disabled = false;
+            } catch (error) {
+                console.error("Error al guardar:", error);
+                alert("Hubo un error al guardar los datos.");
+                btnGuardar.textContent = "Guardar Cambios";
+                btnGuardar.disabled = false;
+            }
+        });
+
+        // 3. Cerrar Sesión
+        if (btnLogout) {
+            btnLogout.addEventListener('click', (e) => {
+                e.preventDefault();
+                signOut(auth).then(() => {
+                    window.location.href = "login.html";
+                });
+            });
+        }
+    </script>
+</body>
+</html>

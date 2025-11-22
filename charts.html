@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <title>Mis Gráficos | Imalá</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="shortcut icon" href="assets/images/favicon.ico">
+    <link rel="shortcut icon" href="assets/images/imala.ico">
     
     <link href="assets/css/bootstrap.min.css" id="bootstrap-style" rel="stylesheet" type="text/css" />
     <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
@@ -14,30 +14,39 @@
     <style>
         /* DEFINICIÓN DE VARIABLES RAÍZ */
         :root {
-            --color-primario: #556ee6; /* Color primario Base */
+            --color-primario: #556ee6; /* Color primario Base (Azul Minia) */
+            --color-primario-suave: rgba(85, 110, 230, 0.15); 
         }
         
         .card-h-100 { height: 100%; }
         .apex-charts { min-height: 100px !important; }
         
-        /* Uso de la variable para colores que ya usaban 'primary' */
-        .bg-soft-primary { background-color: rgba(var(--color-primario), 0.15) !important; }
+        /* 1. USO DE VARIABLES */
+        .bg-soft-primary { background-color: var(--color-primario-suave) !important; }
+        .text-primary { color: var(--color-primario) !important; }
 
-        /* REGLAS PARA CLASES DE TEXTO Y FONDO */
-        .text-primary {
-            color: var(--color-primario) !important;
+        /* 2. ESTILO DE LA BARRA LATERAL ACTIVA */
+        .vertical-menu #sidebar-menu .metismenu a.active {
+            color: var(--color-primario);
+            font-weight: 600;
         }
-
-        /* Estilo Moderno para Tarjeta KPI */
+        
+        .vertical-menu #sidebar-menu .metismenu a.active i {
+            color: var(--color-primario);
+        }
+        
+        /* 3. Estilo Moderno para Tarjeta KPI (Mejorando la sombra y el hover) */
         .kpi-card-modern {
             transition: all 0.3s ease;
             cursor: default;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Sombra base sutil */
         }
         .kpi-card-modern:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important;
+            transform: translateY(-3px); /* Ligeramente más elevado */
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15) !important; /* Sombra más fuerte al hacer hover */
         }
-        /* Estilos Semáforo (Solo para visualización en el navegador) */
+        
+        /* 4. Estilos Semáforo */
         .border-success { border-color: #34c38f !important; }
         .border-warning { border-color: #f1b44c !important; }
         .border-danger { border-color: #f46a6a !important; }
@@ -52,7 +61,7 @@
                 <div class="d-flex">
                     <div class="navbar-brand-box">
                         <a href="index.html" class="logo logo-dark">
-                            <span class="logo-lg"><img src="assets/images/logo-imala.png" alt="" height="24"></span>
+                            <span class="logo-lg"><img src="assets/images/Letras Imala.png" alt="" height="24"></span>
                         </a>
                     </div>
                 </div>

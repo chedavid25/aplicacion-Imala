@@ -98,6 +98,8 @@ function actualizarDashboard() {
 
 
 // --- FUNCIÓN DE CÁLCULO PRINCIPAL (SIN CAMBIOS) ---
+// charts.js - CORRECCIÓN EN LA FUNCIÓN procesarDatos
+
 function procesarDatos(periodo) {
     let meses = [];
     const hoy = new Date();
@@ -111,6 +113,15 @@ function procesarDatos(periodo) {
         if(periodo==="Q3") meses=[6,7,8]; if(periodo==="Q4") meses=[9,10,11];
     }
     else if (periodo === "mes_actual") meses = [mesActual];
+    // --- INICIO DE LA CORRECCIÓN ---
+    else if (periodo.startsWith("M")) {
+        // Extrae el número del mes después de 'M' (ej: 'M10' -> 10)
+        const mesIndex = parseInt(periodo.substring(1));
+        if (!isNaN(mesIndex) && mesIndex >= 0 && mesIndex <= 11) {
+            meses.push(mesIndex);
+        }
+    }
+    // --- FIN DE LA CORRECCIÓN ---
 
     // Factor de Tiempo para objetivos lineales
     const factor_linear = meses.length / 12;
@@ -133,7 +144,7 @@ function procesarDatos(periodo) {
         });
     }
 
-    // Objetivos Base
+    // Objetivos Base (resto del código sin cambios)...
     const p = planAnual || {};
     const O_Fact_Anual = parseFloat(p.objetivoAnual) || 0;
     const ticket = parseFloat(p.ticketPromedio) || 0;
@@ -181,7 +192,6 @@ function procesarDatos(periodo) {
         O_Capt, R_Capt, O_Acm, R_Acm, O_Pre, R_Pre, O_Cara, R_Cara, R_Res, R_PreBuy
     };
 }
-
 
 function renderKPI(id, obj, real, esDinero = false) {
     const pct = obj > 0 ? (real / obj) * 100 : 0;

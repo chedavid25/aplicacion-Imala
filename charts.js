@@ -1,10 +1,7 @@
-// charts.js - VERSIÓN FINAL: SIN RANKING DE OFICINA Y OPTIMIZADO
+// charts.js - VERSIÓN FINAL: FILTRO DE AÑO Y CORRECCIÓN DE MESES
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-// Se importa 'query' y 'where' que son fundamentales para la optimización, aunque solo usemos 'doc' ahora
-// Los mantengo en el import por si en un futuro necesitas filtrar
-// import { query, where } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js"; 
 import { app } from "./firebase-config.js";
 
 const auth = getAuth(app);
@@ -28,29 +25,44 @@ const FACTORES_ESTACIONALES = [
 // 1. INICIO
 onAuthStateChanged(auth, async (user) => {
     if (user) {
+        // Al iniciar, leemos el año por defecto y cargamos datos
         await cargarTodo(user.uid);
     } else {
         window.location.href = "login.html";
     }
 });
 
-// --- FUNCIÓN DE FETCH DE DATOS (OPTIMIZADA) ---
+// Función para manejar el cambio de filtro (Año o Período)
+function manejarCambioFiltro() {
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
+    if (uid) {
+        // Siempre recargamos la data de Firebase al cambiar el filtro de año
+        cargarTodo(uid); 
+    }
+}
+
+// AÑADIR ESCUCHA AL CAMBIO DE FILTROS
+document.getElementById("filtro-periodo").addEventListener("change", actualizarDashboard);
+document.getElementById("filtro-anio").addEventListener("change", manejarCambioFiltro);
+
+
+// --- FUNCIÓN DE FETCH DE DATOS (MODIFICADA para usar el filtro de año) ---
 async function cargarTodo(uid) {
     try {
-        const year = new Date().getFullYear();
+        // Lee el año seleccionado por el usuario desde el nuevo filtro
+        const year = document.getElementById("filtro-anio").value; 
         
-        // 1. Fetch Plan Individual y Tracking Individual (OPTIMIZADO: Lee solo 2 documentos, uno para plan y uno para tracking del agente actual)
-        
-        // Carga del plan del agente actual
+        // 1. Fetch Plan Individual y Tracking Individual
         const docPlan = await getDoc(doc(db, "planificaciones", uid));
         if (docPlan.exists()) planAnual = docPlan.data();
 
-        // Carga del tracking del agente actual
-        const docTrack = await getDoc(doc(db, "tracking", `${uid}_${year}`));
+        // Consulta de Tracking usando el año seleccionado
+        const docTrack = await getDoc(doc(db, "tracking", `${uid}_${year}`)); 
         if (docTrack.exists()) trackingData = docTrack.data();
+        else trackingData = null; // Limpiar datos si no existe el tracking para ese año
 
-        // **NOTA:** La lógica de carga de TODOS los planes/tracking de la base de datos (que era ineficiente) ha sido eliminada.
-
+        // Llama a la función de renderizado una vez que los datos para el año están cargados.
+        // Aquí no se llama a manejarCambioFiltro para evitar bucles.
         actualizarDashboard();
 
     } catch (error) {
@@ -58,14 +70,13 @@ async function cargarTodo(uid) {
     }
 }
 
-document.getElementById("filtro-periodo").addEventListener("change", actualizarDashboard);
-
-// --- FUNCIÓN DE RENDERIZADO PRINCIPAL (SIN CAMBIOS FUNCIONALES) ---
+// --- FUNCIÓN DE RENDERIZADO PRINCIPAL (MODIFICADA para funcionar solo con los datos cargados) ---
 function actualizarDashboard() {
     if (!planAnual) return;
     
+    // El periodo debe ser recalculado basado en el filtro de periodo
     const periodo = document.getElementById("filtro-periodo").value;
-    const datos = procesarDatos(periodo); // Datos del Agente actual
+    const datos = procesarDatos(periodo); // Calcula los KPI y métricas solo con la data de trackingData
 
     // A. KPIs
     renderKPI("facturacion", datos.O_Fact, datos.R_Fact, true);
@@ -97,9 +108,7 @@ function actualizarDashboard() {
 }
 
 
-// --- FUNCIÓN DE CÁLCULO PRINCIPAL (SIN CAMBIOS) ---
-// charts.js - CORRECCIÓN EN LA FUNCIÓN procesarDatos
-
+// --- FUNCIÓN DE CÁLCULO PRINCIPAL (Añadida corrección para meses individuales 'Mxx') ---
 function procesarDatos(periodo) {
     let meses = [];
     const hoy = new Date();
@@ -113,15 +122,14 @@ function procesarDatos(periodo) {
         if(periodo==="Q3") meses=[6,7,8]; if(periodo==="Q4") meses=[9,10,11];
     }
     else if (periodo === "mes_actual") meses = [mesActual];
-    // --- INICIO DE LA CORRECCIÓN ---
+    // CORRECCIÓN: Manejar los meses individuales con el formato 'Mxx'
     else if (periodo.startsWith("M")) {
-        // Extrae el número del mes después de 'M' (ej: 'M10' -> 10)
         const mesIndex = parseInt(periodo.substring(1));
         if (!isNaN(mesIndex) && mesIndex >= 0 && mesIndex <= 11) {
             meses.push(mesIndex);
         }
     }
-    // --- FIN DE LA CORRECCIÓN ---
+    // FIN CORRECCIÓN MESES
 
     // Factor de Tiempo para objetivos lineales
     const factor_linear = meses.length / 12;
@@ -129,7 +137,8 @@ function procesarDatos(periodo) {
     // Sumar Reales
     let R_Fact=0, R_Capt=0, R_Acm=0, R_Pre=0, R_Cara=0, R_Res=0, R_PreBuy=0;
     
-    if (trackingData) {
+    // Usa la data ya cargada en la variable global trackingData
+    if (trackingData) { 
         meses.forEach(m => {
             const dm = trackingData[`mes_${m}`];
             if (dm) {
@@ -144,7 +153,7 @@ function procesarDatos(periodo) {
         });
     }
 
-    // Objetivos Base (resto del código sin cambios)...
+    // Objetivos Base
     const p = planAnual || {};
     const O_Fact_Anual = parseFloat(p.objetivoAnual) || 0;
     const ticket = parseFloat(p.ticketPromedio) || 0;
@@ -193,6 +202,9 @@ function procesarDatos(periodo) {
     };
 }
 
+
+// --- Resto de las funciones (renderKPI, dibujarGauge, etc.) sin cambios ---
+
 function renderKPI(id, obj, real, esDinero = false) {
     const pct = obj > 0 ? (real / obj) * 100 : 0;
     const elReal = document.getElementById(`kpi-${id}-real`);
@@ -222,9 +234,6 @@ function renderKPI(id, obj, real, esDinero = false) {
     elBadge.className = `badge rounded-pill p-2 ${colorClass}`;
     elCard.className = `card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm ${borderClass}`;
 }
-
-
-// --- FUNCIONES DE GRÁFICOS (SIN CAMBIOS) ---
 
 function dibujarGauge(id, real, objetivo) {
     let rawPct = objetivo > 0 ? (real / objetivo) * 100 : 0;

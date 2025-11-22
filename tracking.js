@@ -1,4 +1,4 @@
-// tracking.js - LÓGICA DE LA MATRIZ MENSUAL
+// tracking.js - LÓGICA DE LA MATRIZ MENSUAL (CON FILTRO DE AÑO)
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
@@ -8,27 +8,23 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 let currentUser = null;
-let planificacionAnual = null; // Aquí guardaremos los datos del Paso 1
-let datosTracking = {}; // Aquí lo que se carga en esta pantalla
+let planificacionAnual = null; 
+let datosTracking = {}; 
 
 // --- 1. CONFIGURACIÓN DE ESTACIONALIDAD ---
-// Define qué oficinas usan el cálculo por trimestres (17%, 23%, 25%, 35%)
-// true = Estacional, false = Lineal (dividido 12)
 const CONFIG_OFICINAS = {
     "RE/MAX BIG": true,
     "RE/MAX FORUM": true,
     "RE/MAX FLOR": true,
     "RE/MAX ACUERDO": true,
-    "CROAR PROPIEDADES": false // Ejemplo: Esta usa lineal
+    "CROAR PROPIEDADES": false 
 };
 
-// Porcentajes de Facturación por Trimestre (Q1, Q2, Q3, Q4)
-// Se divide por 3 para saber cuánto toca por MES dentro de ese trimestre
 const FACTORES_ESTACIONALES = {
-    0: 0.17 / 3, 1: 0.17 / 3, 2: 0.17 / 3,       // Ene, Feb, Mar (17%)
-    3: 0.23 / 3, 4: 0.23 / 3, 5: 0.23 / 3,       // Abr, May, Jun (23%)
-    6: 0.25 / 3, 7: 0.25 / 3, 8: 0.25 / 3,       // Jul, Ago, Sep (25%)
-    9: 0.35 / 3, 10: 0.35 / 3, 11: 0.35 / 3      // Oct, Nov, Dic (35%)
+    0: 0.17 / 3, 1: 0.17 / 3, 2: 0.17 / 3,
+    3: 0.23 / 3, 4: 0.23 / 3, 5: 0.23 / 3,
+    6: 0.25 / 3, 7: 0.25 / 3, 8: 0.25 / 3,
+    9: 0.35 / 3, 10: 0.35 / 3, 11: 0.35 / 3
 };
 
 // --- 2. SEGURIDAD Y CARGA INICIAL ---
@@ -40,10 +36,13 @@ onAuthStateChanged(auth, async (user) => {
         // 1. Cargar la Planificación Anual (Objetivos)
         await cargarPlanificacion();
         
-        // 2. Cargar el Tracking (si ya guardó algo este año)
+        // 2. Inicializar el selector de año al año actual
+        document.getElementById("selector-anio").value = new Date().getFullYear();
+        
+        // 3. Cargar el Tracking con el año por defecto
         await cargarTrackingDelAno();
 
-        // 3. Inicializar la pantalla con el mes actual
+        // 4. Inicializar la pantalla con el mes actual
         const mesActual = new Date().getMonth();
         document.getElementById("selector-mes").value = mesActual;
         actualizarMatriz(mesActual);
@@ -59,7 +58,6 @@ async function cargarPlanificacion() {
         const docSnap = await getDoc(doc(db, "planificaciones", currentUser.uid));
         if (docSnap.exists()) {
             planificacionAnual = docSnap.data();
-            // Recalcular objetivos operativos anuales (porque solo guardamos inputs)
             recalcularObjetivosOperativos();
         } else {
             alert("⚠️ Primero debes completar tu Planificación Anual.");
@@ -71,7 +69,6 @@ async function cargarPlanificacion() {
 }
 
 function recalcularObjetivosOperativos() {
-    // Reconstruimos los objetivos anuales matemáticamente
     const p = planificacionAnual;
     const efec = p.efectividades;
     
@@ -81,7 +78,6 @@ function recalcularObjetivosOperativos() {
     
     const transacciones = comision > 0 ? objFact / comision : 0;
     
-    // Embudo inverso
     const captVenta = (parseFloat(efec.captVenta) || 0) / 100;
     const acmCapt = (parseFloat(efec.acmCapt) || 0) / 100;
     const preListAcm = (parseFloat(efec.preListAcm) || 0) / 100;
@@ -92,7 +88,6 @@ function recalcularObjetivosOperativos() {
     const acms = acmCapt > 0 ? captaciones / acmCapt : 0;
     const prelistings = preListAcm > 0 ? acms / preListAcm : 0;
 
-    // Guardamos los objetivos anuales calculados en el objeto
     planificacionAnual.OBJETIVOS = {
         facturacion: objFact,
         captaciones: captaciones,
@@ -102,14 +97,21 @@ function recalcularObjetivosOperativos() {
 }
 
 async function cargarTrackingDelAno() {
-    const year = new Date().getFullYear();
+    if (!currentUser) return;
+
+    // *** LEE EL AÑO SELECCIONADO ***
+    const year = document.getElementById("selector-anio").value; 
+    const mesIndex = parseInt(document.getElementById("selector-mes").value);
+
     try {
         const docSnap = await getDoc(doc(db, "tracking", `${currentUser.uid}_${year}`));
         if (docSnap.exists()) {
             datosTracking = docSnap.data();
         } else {
-            datosTracking = {}; // Empezamos de cero este año
+            datosTracking = {}; // No hay tracking para este año, la matriz estará vacía
         }
+        // Actualiza la matriz con el mes seleccionado y los datos del año nuevo/existente
+        actualizarMatriz(mesIndex); 
     } catch (error) {
         console.error("Error cargando tracking:", error);
     }
@@ -117,10 +119,13 @@ async function cargarTrackingDelAno() {
 
 // --- 4. LÓGICA DE LA MATRIZ ---
 
-// Evento: Cambiar de Mes
+// Evento: Cambiar de Mes -> Recarga la matriz con el mes nuevo (usa los datos del año ya cargados)
 document.getElementById("selector-mes").addEventListener("change", (e) => {
     actualizarMatriz(parseInt(e.target.value));
 });
+
+// *** NUEVO EVENTO: Cambiar de Año -> Llama a cargarTrackingDelAno para obtener nuevos datos de Firebase ***
+document.getElementById("selector-anio").addEventListener("change", cargarTrackingDelAno);
 
 // Evento: Escribir en los inputs (Cálculo en vivo)
 document.querySelectorAll('.input-cell').forEach(input => {
@@ -131,6 +136,8 @@ document.querySelectorAll('.input-cell').forEach(input => {
 });
 
 function actualizarMatriz(mesIndex) {
+    if (!planificacionAnual) return;
+
     // 1. Limpiar inputs
     document.querySelectorAll('.input-cell').forEach(i => i.value = "");
 
@@ -146,7 +153,7 @@ function actualizarMatriz(mesIndex) {
         rellenarFila("reservas", datosMes.reservas);
     }
 
-    // 3. Calcular Objetivos del Mes (La magia de la Estacionalidad)
+    // 3. Calcular Objetivos del Mes
     establecerObjetivosMensuales(mesIndex);
 
     // 4. Recalcular totales visuales
@@ -168,27 +175,21 @@ function establecerObjetivosMensuales(mesIndex) {
     if (!planificacionAnual || !planificacionAnual.OBJETIVOS) return;
 
     const oficina = planificacionAnual.oficina;
-    const usaEstacionalidad = CONFIG_OFICINAS[oficina] === true; // Verifica si aplica la regla
+    const usaEstacionalidad = CONFIG_OFICINAS[oficina] === true; 
 
-    // FACTURACIÓN
     let objetivoFact = 0;
     if (usaEstacionalidad) {
-        // Aplica % del trimestre
         const factor = FACTORES_ESTACIONALES[mesIndex];
         objetivoFact = planificacionAnual.OBJETIVOS.facturacion * factor;
     } else {
-        // Lineal (Dividido 12)
         objetivoFact = planificacionAnual.OBJETIVOS.facturacion / 12;
     }
 
-    // OTROS (Siempre lineales o podrías aplicar factor también si quisieras)
-    // Por defecto en el rubro, captaciones y gestión suele ser más constante, así que usamos lineal.
     const objetivoCapt = planificacionAnual.OBJETIVOS.captaciones / 12;
     const objetivoAcm = planificacionAnual.OBJETIVOS.acm / 12;
     const objetivoPre = planificacionAnual.OBJETIVOS.prelisting / 12;
 
-    // Escribir en la tabla
-    pintarObjetivo("facturacion", objetivoFact, true); // true = es dinero
+    pintarObjetivo("facturacion", objetivoFact, true); 
     pintarObjetivo("captaciones", objetivoCapt, false);
     pintarObjetivo("acm", objetivoAcm, false);
     pintarObjetivo("prelisting", objetivoPre, false);
@@ -197,25 +198,21 @@ function establecerObjetivosMensuales(mesIndex) {
 function pintarObjetivo(id, valor, esDinero) {
     const celda = document.querySelector(`tr[data-id="${id}"] .val-objetivo`);
     if (celda) {
-        // Guardamos el valor numérico "escondido" para cálculos
         celda.dataset.value = valor;
-        // Mostramos bonito
         if (esDinero) {
             celda.textContent = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(valor);
         } else {
-            celda.textContent = Math.ceil(valor); // Redondeo hacia arriba en gestión
+            celda.textContent = Math.ceil(valor); 
         }
     }
 }
 
 function calcularFila(fila) {
-    // 1. Sumar inputs
     let total = 0;
     fila.querySelectorAll('.input-cell').forEach(inp => {
         total += parseFloat(inp.value) || 0;
     });
 
-    // 2. Mostrar Total
     const celdaTotal = fila.querySelector('.val-total');
     const esDinero = fila.dataset.id === "facturacion";
     
@@ -225,7 +222,6 @@ function calcularFila(fila) {
         celdaTotal.textContent = total;
     }
 
-    // 3. Calcular % vs Objetivo (si existe objetivo)
     const celdaObj = fila.querySelector('.val-objetivo');
     const celdaPct = fila.querySelector('.val-pct');
 
@@ -236,11 +232,10 @@ function calcularFila(fila) {
             const porcentaje = (total / objetivo) * 100;
             celdaPct.textContent = porcentaje.toFixed(0) + "%";
 
-            // Semáforo de colores
-            celdaPct.className = "badge val-pct"; // Reset clases
-            if (porcentaje >= 100) celdaPct.classList.add("bg-success"); // Verde
-            else if (porcentaje >= 70) celdaPct.classList.add("bg-warning"); // Amarillo
-            else celdaPct.classList.add("bg-danger"); // Rojo
+            celdaPct.className = "badge val-pct"; 
+            if (porcentaje >= 100) celdaPct.classList.add("bg-success"); 
+            else if (porcentaje >= 70) celdaPct.classList.add("bg-warning");
+            else celdaPct.classList.add("bg-danger"); 
         } else {
             celdaPct.textContent = "-";
             celdaPct.classList.add("bg-light", "text-dark");
@@ -248,16 +243,16 @@ function calcularFila(fila) {
     }
 }
 
-// --- 5. GUARDAR ---
+// --- 5. GUARDAR (MODIFICADA para usar el filtro de año) ---
 document.getElementById("btn-guardar-track").addEventListener("click", async () => {
     const btn = document.getElementById("btn-guardar-track");
     const textoOriginal = btn.innerHTML;
     btn.innerHTML = `<i class="bx bx-loader bx-spin"></i> Guardando...`;
 
     const mesIndex = document.getElementById("selector-mes").value;
-    const year = new Date().getFullYear();
+    // *** LEE EL AÑO SELECCIONADO AL GUARDAR ***
+    const year = document.getElementById("selector-anio").value; 
 
-    // Recolectar datos de la matriz
     const datosAguardar = {
         facturacion: leerFila("facturacion"),
         captaciones: leerFila("captaciones"),
@@ -269,8 +264,6 @@ document.getElementById("btn-guardar-track").addEventListener("click", async () 
         ultimaActualizacion: new Date().toISOString()
     };
 
-    // Estructura: tracking -> uid_2025 -> mes_X
-    // Usamos { merge: true } para no borrar los otros meses
     const docRef = doc(db, "tracking", `${currentUser.uid}_${year}`);
     
     try {
@@ -278,7 +271,6 @@ document.getElementById("btn-guardar-track").addEventListener("click", async () 
             [`mes_${mesIndex}`]: datosAguardar
         }, { merge: true });
         
-        // Actualizamos la variable local también
         if(!datosTracking) datosTracking = {};
         datosTracking[`mes_${mesIndex}`] = datosAguardar;
 
@@ -294,7 +286,6 @@ document.getElementById("btn-guardar-track").addEventListener("click", async () 
 function leerFila(id) {
     const fila = document.querySelector(`tr[data-id="${id}"]`);
     const inputs = fila.querySelectorAll('.input-cell');
-    // Calculamos el total real para guardarlo y facilitar reportes luego
     let total = 0;
     inputs.forEach(i => total += parseFloat(i.value) || 0);
 

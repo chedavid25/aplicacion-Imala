@@ -21,7 +21,7 @@
 
     <div id="layout-wrapper">
 
-                <header id="page-topbar">
+        <header id="page-topbar">
             <div class="navbar-header">
                 <div class="d-flex">
                     <!-- LOGO -->
@@ -102,8 +102,9 @@
                         </li>
                     </ul>
                 </div>
-                </div>
+            </div>
         </div>
+
         <div class="main-content">
 
             <div class="page-content">
@@ -149,13 +150,9 @@
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Selecciona tu Oficina</label>
+                                        <!-- AHORA SE COMPLETA DINÁMICAMENTE DESDE FIRESTORE -->
                                         <select class="form-select" id="miOficina">
-                                            <option value="" selected disabled>Elige una opción...</option>
-                                            <option value="RE/MAX BIG">RE/MAX BIG</option>
-                                            <option value="RE/MAX FLOR">RE/MAX FLOR</option>
-                                            <option value="RE/MAX FORUM">RE/MAX FORUM</option>
-                                            <option value="RE/MAX ACUERDO">RE/MAX ACUERDO</option>
-                                            <option value="CROAR PROPIEDADES">CROAR PROPIEDADES</option>
+                                            <option value="" selected disabled>Cargando oficinas...</option>
                                         </select>
                                     </div>
                                     <div class="mb-3">
@@ -188,7 +185,7 @@
                                     <p class="card-title-desc">Define tus metas y efectividades para calcular el trabajo necesario.</p>
                                 </div>
                                 <div class="card-body">
-                                        <div class="row">
+                                    <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Objetivo Anual (USD)</label>
                                             <input type="number" class="form-control objetivoAnual" placeholder="Monto anual">
@@ -310,7 +307,11 @@
                             </div>
                         </div>
 
-                    </div> </div> </div> <footer class="footer">
+                    </div>
+                </div>
+            </div>
+
+            <footer class="footer">
                 <div class="container-fluid">
                     <div class="row">
                         <div class="col-sm-6">
@@ -325,7 +326,9 @@
                 </div>
             </footer>
         </div>
-        </div>
+
+    </div>
+
     <script src="assets/libs/jquery/jquery.min.js"></script>
     <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="assets/libs/metismenu/metisMenu.min.js"></script>

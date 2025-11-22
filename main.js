@@ -1,4 +1,4 @@
-// main.js - VERSIÓN FINAL (CON PLANIFICACIÓN ANUAL Y ESPACIADO DE PDF CORREGIDO)
+// main.js - VERSIÓN FINAL (CON PLANIFICACIÓN ANUAL Y VALIDACIÓN)
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js"; 
@@ -9,7 +9,58 @@ const db = getFirestore(app);
 let currentUser = null;
 
 // ------------------------------------------------------------------
-// 1. SISTEMA DE SEGURIDAD Y CARGA
+// FUNCION DE VALIDACIÓN ESTRICTA
+// ------------------------------------------------------------------
+function validarPlanificacionCompleta() {
+    const year = document.getElementById('selector-plan-anio').value;
+    const nombre = document.getElementById('miNombre').value;
+    const oficina = document.getElementById('miOficina').value;
+    
+    // Objetivos (deben ser > 0)
+    const gasto = parseFloat(document.querySelector('.gastoMensual').value) || 0;
+    const condicion = parseFloat(document.querySelector('.condicionDeAgente').value) || 0;
+    const objetivo = parseFloat(document.querySelector('.objetivoAnual').value) || 0;
+    const ticket = parseFloat(document.querySelector('.ticketPromedio').value) || 0;
+
+    // Efectividades (deben estar llenas, pueden ser 0)
+    const preListAcm = document.querySelector('.preListingAcm').value;
+    const acmCaptacion = document.querySelector('.acmCaptacion').value;
+    const captacionVenta = document.querySelector('.captacionVenta').value;
+    const listingPropio = document.querySelector('.listingPropio').value;
+    const busquedas = document.querySelector('.busquedas').value;
+    
+    // 1. Campos de texto y selección obligatorios
+    if (!year || year === "") {
+        alert("ERROR: Por favor, selecciona el Año de la Planificación.");
+        return false;
+    }
+    if (!nombre || nombre.trim() === "") {
+        alert("ERROR: Por favor, ingresa tu Nombre completo.");
+        return false;
+    }
+    if (!oficina || oficina === "") {
+        alert("ERROR: Por favor, selecciona tu Oficina.");
+        return false;
+    }
+
+    // 2. Objetivos financieros (deben ser > 0)
+    if (gasto <= 0 || condicion <= 0 || objetivo <= 0 || ticket <= 0) {
+        alert("ERROR: Los campos 'Gasto Mensual', 'Condición de Agente', 'Objetivo Anual' y 'Ticket Promedio' deben ser números mayores a cero (0).");
+        return false;
+    }
+
+    // 3. Efectividades (deben estar llenas, incluso si es 0)
+    if (preListAcm === '' || acmCaptacion === '' || captacionVenta === '' || listingPropio === '' || busquedas === '') {
+        alert("ERROR: Por favor, completa todos los campos de 'Tus Efectividades (%)'. Si la efectividad es cero, ingresa 0.");
+        return false;
+    }
+
+    return true;
+}
+
+
+// ------------------------------------------------------------------
+// 1. SISTEMA DE SEGURIDAD Y CARGA DE DATOS
 // ------------------------------------------------------------------
 onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -148,34 +199,27 @@ function obtenerDatosFormulario() {
 }
 
 // ------------------------------------------------------------------
-// 4. GUARDAR EN LA NUBE (CON AÑO)
+// 4. GUARDAR EN LA NUBE (CON AÑO Y VALIDACIÓN)
 // ------------------------------------------------------------------
 const btnGuardar = document.getElementById('btnGuardarPlanificacion');
 if (btnGuardar) {
     btnGuardar.addEventListener('click', async () => {
         if (!currentUser) return;
         const textoOriginal = btnGuardar.innerHTML;
+        
+        // *** VALIDACIÓN PRINCIPAL ***
+        if (!validarPlanificacionCompleta()) { 
+            return; // Detiene la ejecución si falla la validación
+        }
+        
         btnGuardar.innerHTML = `<i class="bx bx-loader bx-spin font-size-16 align-middle me-2"></i> Guardando...`;
 
         try {
             const datosCalc = obtenerDatosFormulario();
-            if(!datosCalc) { alert("Calcula primero los datos."); btnGuardar.innerHTML = textoOriginal; return;}
-
-            // Validar Oficina
+            
+            // La validación garantiza que estos valores existen y son válidos
             const oficina = document.getElementById('miOficina').value;
-            if(!oficina) {
-                alert("Por favor selecciona tu Oficina.");
-                btnGuardar.innerHTML = textoOriginal;
-                return;
-            }
-
-            // *** LEER EL AÑO SELECCIONADO PARA LA CLAVE ***
             const year = document.getElementById('selector-plan-anio').value;
-            if(!year) {
-                alert("Por favor selecciona el Año de la Planificación.");
-                btnGuardar.innerHTML = textoOriginal;
-                return;
-            }
             
             const datosAGuardar = {
                 nombreAgente: document.getElementById('miNombre').value,
@@ -198,7 +242,6 @@ if (btnGuardar) {
                 fechaActualizacion: new Date().toISOString()
             };
 
-            // *** SE GUARDA USANDO LA CLAVE UID_AÑO ***
             await setDoc(doc(db, "planificaciones", `${currentUser.uid}_${year}`), datosAGuardar);
             alert(`✅ ¡Planificación para el año ${year} guardada exitosamente!`);
 
@@ -212,16 +255,21 @@ if (btnGuardar) {
 }
 
 // ------------------------------------------------------------------
-// 5. GENERAR PDF (CON ESPACIADO CORREGIDO)
+// 5. GENERAR PDF (CON ESPACIADO CORREGIDO Y VALIDACIÓN)
 // ------------------------------------------------------------------
 const btnPdf = document.getElementById('btnGenerarPdf');
 if (btnPdf) {
     btnPdf.addEventListener('click', () => {
         if (!window.jspdf) { alert("Error: Librería PDF no cargada."); return; }
         
-        const datos = obtenerDatosFormulario();
-        if (!datos) { alert("Por favor, realiza el cálculo antes de descargar."); return; }
+        // *** VALIDACIÓN APLICADA AL PDF ***
+        if (!validarPlanificacionCompleta()) { 
+            return; // Detiene la ejecución si falla la validación
+        }
 
+        const datos = obtenerDatosFormulario();
+        // El 'obtenerDatosFormulario' ahora está protegido por la validación
+        
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
@@ -241,12 +289,12 @@ if (btnPdf) {
         // ** AJUSTE DE POSICIONAMIENTO **
         let y = 70; // Se inicia más abajo para dar espacio después del encabezado
         const margenIzq = 20; 
-        const colValor = 115; // Ajustamos ligeramente la columna para el valor
-        const saltoLineaItem = 8; // Espacio entre ítems (aumentado de 7 a 8)
+        const colValor = 115; 
+        const saltoLineaItem = 8; 
 
         const tituloSeccion = (texto) => {
             doc.setFontSize(14); doc.setTextColor(255, 126, 0); doc.setFont("helvetica", "bold");
-            doc.text(texto, margenIzq, y); y += 12; // Se aumenta el salto de línea del título (de 10 a 12)
+            doc.text(texto, margenIzq, y); y += 12; // Salto de línea limpio
         };
         const itemDato = (etiqueta, valor) => {
             doc.setFontSize(11); doc.setTextColor(50, 50, 50); doc.setFont("helvetica", "bold");
@@ -254,7 +302,7 @@ if (btnPdf) {
             doc.setFont("helvetica", "normal"); doc.text(String(valor), colValor, y); y += saltoLineaItem;
         };
 
-        // Encabezado (Posiciones fijas, se mantienen)
+        // Encabezado
         doc.setFontSize(12); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
         doc.text(`Agente: ${nombre}`, margenIzq, 45);
         doc.text(`Oficina: ${oficina}`, margenIzq, 51);
@@ -262,7 +310,7 @@ if (btnPdf) {
         doc.text(`Fecha de Descarga: ${fecha}`, 150, 45);
 
         // Datos
-        tituloSeccion("Mis Efectividades:"); // Primera sección en y=70 (70+12)
+        tituloSeccion("Mis Efectividades:"); 
         const fmtUSD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
         itemDato("Objetivo anual:", fmtUSD.format(datos.objetivo));
@@ -275,7 +323,7 @@ if (btnPdf) {
         itemDato("Porcentaje de Búsquedas:", datos.rawBusquedas + "%");
 
         y += 12; // Salto grande entre secciones
-        tituloSeccion("Resultados de Gestión necesaria"); // Siguiente sección
+        tituloSeccion("Resultados de Gestión necesaria"); 
 
         const fmtRes = (val) => {
             const anual = Math.ceil(val);
@@ -291,11 +339,11 @@ if (btnPdf) {
         itemDato("ACM:", fmtRes(datos.acms));
         itemDato("Prelisting:", fmtRes(datos.preListings));
 
-        // Mover la comisión promedio para que no se superponga con los resultados
+        // Mover la comisión promedio
         y += 10;
         doc.setFontSize(11); doc.setTextColor(50, 50, 50); doc.setFont("helvetica", "normal");
-        const fmtComision = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(datos.comisionPromedio);
-        doc.text(`Promedio de comisión por venta (3%): ${fmtComision}`, margenIzq, y);
+        const fmtComisionFinal = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(datos.comisionPromedio);
+        doc.text(`Promedio de comisión por venta (3%): ${fmtComisionFinal}`, margenIzq, y);
 
         doc.save(`Planificacion_${nombre}_${year}.pdf`); 
     });

@@ -1,9 +1,9 @@
-// main.js - Planificación Anual (Configuración Centralizada)
+// main.js - Planificación Anual (Con campo 'anio' para indexación)
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { app } from "./firebase-config.js";
-import { ConfigService } from "./config-service.js"; // <--- IMPORTANTE
+import { ConfigService } from "./config-service.js";
 
 const auth = getAuth(app);
 const db   = getFirestore(app);
@@ -18,9 +18,7 @@ async function cargarOficinasEnSelect() {
     select.innerHTML = `<option value="" selected disabled>Cargando oficinas...</option>`;
 
     try {
-        const listaOficinas = await ConfigService.obtenerOficinas(); // [{nombre, usaEstacionalidad}]
-        
-        // Ordenar alfabéticamente por nombre
+        const listaOficinas = await ConfigService.obtenerOficinas();
         listaOficinas.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
         let opciones = `<option value="" selected disabled>Seleccioná tu oficina...</option>`;
@@ -94,7 +92,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ------------------------------------------------------------------
-// CALCULADORAS (Objetivo y Gestión)
+// CALCULADORAS
 // ------------------------------------------------------------------
 const btnObjetivo = document.querySelector('.btnCalcularObjetivo');
 if (btnObjetivo) {
@@ -155,7 +153,6 @@ function obtenerDatosFormulario() {
     if (obj === 0 || ticket === 0) return null;
 
     const comisionPromedio = ticket * 0.03;
-    // Validación simple para evitar Infinity
     const ventasTotales = comisionPromedio > 0 ? obj / comisionPromedio : 0;
     const ventasPropias = ventasTotales * prop;
     const ventasBusq    = ventasTotales * busq;
@@ -172,7 +169,7 @@ function obtenerDatosFormulario() {
 }
 
 // ------------------------------------------------------------------
-// GUARDAR EN FIRESTORE
+// GUARDAR EN FIRESTORE (Optimizado)
 // ------------------------------------------------------------------
 const btnGuardar = document.getElementById('btnGuardarPlanificacion');
 if (btnGuardar) {
@@ -209,7 +206,8 @@ if (btnGuardar) {
                     ventas: datosCalc.ventasTotales.toFixed(1)
                 },
                 emailUsuario: currentUser.email,
-                fechaActualizacion: new Date().toISOString()
+                fechaActualizacion: new Date().toISOString(),
+                anio: parseInt(year) // <--- CLAVE PARA ESCALABILIDAD
             };
 
             await setDoc(doc(db, "planificaciones", `${currentUser.uid}_${year}`), data);
@@ -239,7 +237,6 @@ if (btnPdf) {
         const { jsPDF } = window.jspdf;
         const docPdf = new jsPDF();
         
-        // (Opcional) Imagen base64 si la tenés
         const bg = ""; 
         if (bg) docPdf.addImage(bg, 'PNG', 0, 0, 210, 297);
 
@@ -292,7 +289,6 @@ async function cargarDatosGuardados(uid) {
         const year = document.getElementById('selector-plan-anio').value;
         const docSnap = await getDoc(doc(db, "planificaciones", `${uid}_${year}`));
         
-        // Limpiar campos
         ['.gastoMensual','.condicionDeAgente','.objetivoAnual','.ticketPromedio',
          '.preListingAcm','.acmCaptacion','.captacionVenta','.listingPropio','.busquedas']
          .forEach(s => document.querySelector(s).value = '');

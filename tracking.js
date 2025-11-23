@@ -1,9 +1,9 @@
-// tracking.js - TRACKING MENSUAL POR AÑO (Configuración Centralizada)
+// tracking.js - Con soporte para Transacciones Propio y Búsqueda
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { app } from "./firebase-config.js";
-import { ConfigService } from "./config-service.js"; // <--- IMPORTANTE
+import { ConfigService } from "./config-service.js";
 
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -14,43 +14,36 @@ let datosTracking = {};
 
 // Variables dinámicas
 let FACTORES_GLOBAL = [];
-let CONFIG_OFICINAS = {}; // mapa: nombre -> usaEstacionalidad
+let CONFIG_OFICINAS = {}; 
 
 onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = "login.html";
-        return;
-    }
+    if (!user) { window.location.href = "login.html"; return; }
     currentUser = user;
     console.log("Usuario tracking:", user.email);
 
-    // 1. Cargar Configuración Global
     await cargarConfiguracionGlobal();
 
     const selectorAnio = document.getElementById("selector-anio");
     const selectorMes  = document.getElementById("selector-mes");
 
-    // Año por defecto
     const añoActual = new Date().getFullYear();
     if (selectorAnio && !selectorAnio.value) selectorAnio.value = añoActual;
 
-    // Cargar datos
     await cargarPlanificacion();
     await cargarTrackingDelAno();
 
-    // Mes por defecto
     const mesActual = new Date().getMonth();
     if (selectorMes) {
         selectorMes.value = String(mesActual);
         actualizarMatriz(mesActual);
     }
 
-    // Link admin si corresponde
+    // Botón Admin (solo para admin raiz)
     if (user.email === "contacto@imala.com.ar") {
         const sidebar = document.getElementById("sidebar-menu");
         if (sidebar) {
             const menu = sidebar.querySelector("ul");
-            if (menu) {
+            if (menu && !menu.querySelector('a[href="admin.html"]')) {
                 const li = document.createElement("li");
                 li.innerHTML = `<a href="admin.html" class="text-danger fw-bold"><i data-feather="shield"></i><span>Panel Admin</span></a>`;
                 menu.appendChild(li);
@@ -59,7 +52,6 @@ onAuthStateChanged(auth, async (user) => {
         }
     }
 
-    // Listeners
     if (selectorMes) {
         selectorMes.addEventListener("change", (e) => {
             actualizarMatriz(parseInt(e.target.value, 10) || 0);
@@ -83,11 +75,8 @@ onAuthStateChanged(auth, async (user) => {
 async function cargarConfiguracionGlobal() {
     const config = await ConfigService.obtenerConfiguracionCompleta();
     FACTORES_GLOBAL = config.factores;
-    
     CONFIG_OFICINAS = {};
-    config.oficinas.forEach(of => {
-        CONFIG_OFICINAS[of.nombre] = of.usaEstacionalidad;
-    });
+    config.oficinas.forEach(of => { CONFIG_OFICINAS[of.nombre] = of.usaEstacionalidad; });
 }
 
 async function cargarPlanificacion() {
@@ -99,11 +88,10 @@ async function cargarPlanificacion() {
             planificacionAnual = snap.data();
             recalcularObjetivosOperativos();
         } else {
-            planificacionAnual = { OBJETIVOS: { facturacion: 0, captaciones: 0, acm: 0, prelisting: 0 } };
+            planificacionAnual = { OBJETIVOS: { facturacion:0, captaciones:0, acm:0, prelisting:0, ventas_propio:0, ventas_busqueda:0 } };
         }
     } catch (err) {
         console.error("Error plan:", err);
-        planificacionAnual = { OBJETIVOS: { facturacion: 0, captaciones: 0, acm: 0, prelisting: 0 } };
     }
 }
 
@@ -115,17 +103,26 @@ function recalcularObjetivosOperativos() {
     const ticket  = parseFloat(p.ticketPromedio) || 0;
     const comision = ticket * 0.03;
     const transacciones = comision > 0 ? objFact / comision : 0;
+
     const captVenta = (parseFloat(efec.captVenta)||0)/100;
     const acmCapt = (parseFloat(efec.acmCapt)||0)/100;
     const preListAcm = (parseFloat(efec.preListAcm)||0)/100;
+    
+    // Desglosar transacciones
     const pctPropio = (parseFloat(efec.listingPropio)||0)/100;
+    const pctBusq   = (parseFloat(efec.busquedas)||0)/100;
+
     const ventasPropias = transacciones * pctPropio;
+    const ventasBusq    = transacciones * pctBusq;
+    
     const captaciones = captVenta>0 ? ventasPropias/captVenta : 0;
     const acms = acmCapt>0 ? captaciones/acmCapt : 0;
     const prelistings = preListAcm>0 ? acms/preListAcm : 0;
 
     planificacionAnual.OBJETIVOS = {
         facturacion: objFact,
+        ventas_propio: ventasPropias, // Objetivo anual Propio
+        ventas_busqueda: ventasBusq,  // Objetivo anual Búsqueda
         captaciones: captaciones,
         acm: acms,
         prelisting: prelistings
@@ -156,6 +153,8 @@ function actualizarMatriz(mesIndex) {
     const datosMes = datosTracking[`mes_${mesIndex}`];
     if (datosMes) {
         rellenarFila("facturacion", datosMes.facturacion);
+        rellenarFila("ventas_propio", datosMes.ventas_propio);     // NUEVO
+        rellenarFila("ventas_busqueda", datosMes.ventas_busqueda); // NUEVO
         rellenarFila("captaciones", datosMes.captaciones);
         rellenarFila("acm", datosMes.acm);
         rellenarFila("prelisting", datosMes.prelisting);
@@ -185,17 +184,21 @@ function establecerObjetivosMensuales(mesIndex) {
 
     const oficina = planificacionAnual.oficina || "";
     const usaEstacionalidad = CONFIG_OFICINAS[oficina] === true;
+    const FACTORES = FACTORES_GLOBAL;
 
-    // FACTURACIÓN (Usa factores globales cargados de DB)
     let objetivoFact = 0;
-    if (usaEstacionalidad && FACTORES_GLOBAL.length === 12) {
-        const factor = FACTORES_GLOBAL[mesIndex];
+    if (usaEstacionalidad && FACTORES.length === 12) {
+        const factor = FACTORES[mesIndex];
         objetivoFact = planificacionAnual.OBJETIVOS.facturacion * factor;
     } else {
         objetivoFact = planificacionAnual.OBJETIVOS.facturacion / 12;
     }
 
     pintarObjetivo("facturacion", objetivoFact, true);
+    
+    // El resto es lineal (/12)
+    pintarObjetivo("ventas_propio", planificacionAnual.OBJETIVOS.ventas_propio/12, false);
+    pintarObjetivo("ventas_busqueda", planificacionAnual.OBJETIVOS.ventas_busqueda/12, false);
     pintarObjetivo("captaciones", planificacionAnual.OBJETIVOS.captaciones/12, false);
     pintarObjetivo("acm", planificacionAnual.OBJETIVOS.acm/12, false);
     pintarObjetivo("prelisting", planificacionAnual.OBJETIVOS.prelisting/12, false);
@@ -208,7 +211,8 @@ function pintarObjetivo(id, valor, esDinero) {
     if (esDinero) {
         celda.textContent = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(valor||0);
     } else {
-        celda.textContent = Math.ceil(valor||0);
+        // Mostramos con 1 decimal si es muy pequeño, o entero
+        celda.textContent = (valor < 1 && valor > 0) ? valor.toFixed(1) : Math.ceil(valor||0);
     }
 }
 
@@ -254,6 +258,8 @@ async function guardarTrackingMesActual() {
 
         const datosAguardar = {
             facturacion: leerFila("facturacion"),
+            ventas_propio: leerFila("ventas_propio"),     // NUEVO
+            ventas_busqueda: leerFila("ventas_busqueda"), // NUEVO
             captaciones: leerFila("captaciones"),
             acm: leerFila("acm"),
             prelisting: leerFila("prelisting"),
@@ -263,11 +269,10 @@ async function guardarTrackingMesActual() {
             ultimaActualizacion: new Date().toISOString()
         };
 
-        // NOTA: Agregamos el campo "anio" para facilitar el Paso 4 del plan
         const docRef = doc(db, "tracking", `${currentUser.uid}_${year}`);
         await setDoc(docRef, { 
             [`mes_${mesIndex}`]: datosAguardar,
-            anio: parseInt(year) // Guardamos el año como número para filtrado futuro
+            anio: parseInt(year) 
         }, { merge: true });
 
         if (!datosTracking) datosTracking = {};

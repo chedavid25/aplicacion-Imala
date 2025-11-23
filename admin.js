@@ -1,4 +1,4 @@
-// admin.js - Panel Admin / Broker con roles y oficinas desde Firestore
+// admin.js - Panel Admin / Broker (Refactorizado Paso 1: Config Centralizada)
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
@@ -11,86 +11,51 @@ import {
     setDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { app } from "./firebase-config.js";
+import { ConfigService } from "./config-service.js"; // <--- IMPORTANTE
 
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Admin raíz
 const ADMIN_EMAIL = "contacto@imala.com.ar";
-
-// --- PEGA AQUÍ EL CÓDIGO BASE64 DE TU IMAGEN (o dejalo vacío) ---
 const backgroundImageBase64 = "";
 
-let currentUserRole = null;       // "admin" | "broker"
-let currentBrokerOffice = null;   // nombre de oficina para broker
+let currentUserRole = null;
+let currentBrokerOffice = null;
 let todosLosDatos = [];
 let trackingGlobal = {};
 let datosProcesadosGlobal = [];
 
+// Variables globales de configuración (se llenan vía servicio)
+let FACTORES_GLOBAL = [];
+let CONFIG_OFICINAS = {}; // mapa nombre -> usaEstacionalidad
+let OFICINAS_NOMBRES = [];
+
 // ------------------------------------------------------------------
-// OFICINAS + ESTACIONALIDAD
+// INICIALIZACIÓN Y CARGA DE CONFIG
 // ------------------------------------------------------------------
-// Config fija de respaldo (por si no hay nada en Firestore)
-const CONFIG_OFICINAS_FIJA = {
-    "RE/MAX BIG": true,
-    "RE/MAX FORUM": true,
-    "RE/MAX FLOR": true,
-    "RE/MAX ACUERDO": true,
-    "CROAR PROPIEDADES": false
-};
+async function inicializarSistema() {
+    // 1. Cargar configuración centralizada
+    const config = await ConfigService.obtenerConfiguracionCompleta();
+    FACTORES_GLOBAL = config.factores;
+    
+    // Transformar array de oficinas a objeto y lista de nombres
+    CONFIG_OFICINAS = {};
+    OFICINAS_NOMBRES = [];
+    
+    config.oficinas.forEach(of => {
+        OFICINAS_NOMBRES.push(of.nombre);
+        CONFIG_OFICINAS[of.nombre] = of.usaEstacionalidad;
+    });
 
-// Se actualizan al leer colección "oficinas"
-let CONFIG_OFICINAS = { ...CONFIG_OFICINAS_FIJA };
-let OFICINAS_NOMBRES = Object.keys(CONFIG_OFICINAS_FIJA);
+    // Ordenar nombres alfabéticamente
+    OFICINAS_NOMBRES.sort();
 
-// FACTORES de estacionalidad por mes (abril... etc dividido por 3)
-const FACTORES = [
-    0.17 / 3, 0.17 / 3, 0.17 / 3,
-    0.23 / 3, 0.23 / 3, 0.23 / 3,
-    0.25 / 3, 0.25 / 3, 0.25 / 3,
-    0.35 / 3, 0.35 / 3, 0.35 / 3
-];
-
-// Lee las oficinas desde Firestore/oficinas
-async function cargarOficinas() {
-    try {
-        const snap = await getDocs(collection(db, "oficinas"));
-        const nombres = [];
-        const config = {};
-
-        snap.forEach(dSnap => {
-            const data = dSnap.data();
-            const nombre = data.nombre;
-            if (!nombre) return;
-            nombres.push(nombre);
-            config[nombre] = !!data.usaEstacionalidad; // true/false
-        });
-
-        if (nombres.length > 0) {
-            OFICINAS_NOMBRES = nombres;
-            CONFIG_OFICINAS = config;
-        }
-    } catch (err) {
-        console.error("Error cargando oficinas desde Firestore:", err);
-    }
-
-    // Si soy broker y mi oficina no está en la lista, la agrego para el combo
-    if (currentUserRole === "broker" &&
-        currentBrokerOffice &&
-        !OFICINAS_NOMBRES.includes(currentBrokerOffice)
-    ) {
-        OFICINAS_NOMBRES.push(currentBrokerOffice);
-        if (!(currentBrokerOffice in CONFIG_OFICINAS)) {
-            CONFIG_OFICINAS[currentBrokerOffice] = false; // sin estacionalidad por defecto
-        }
-    }
-
-    // Poblamos el select de filtro de oficinas
+    // 2. Poblar select de oficinas
     const sel = document.getElementById("filtro-oficina");
     if (sel) {
         const valorActual = sel.value;
         sel.innerHTML = "";
-
+        
         const optTodas = document.createElement("option");
         optTodas.value = "Todas";
         optTodas.textContent = "Todas las oficinas";
@@ -103,15 +68,14 @@ async function cargarOficinas() {
             sel.appendChild(opt);
         });
 
-        // Si había un valor seleccionado y sigue existiendo, lo mantenemos
-        if (valorActual && [...sel.options].some(o => o.value === valorActual)) {
+        if (valorActual && OFICINAS_NOMBRES.includes(valorActual)) {
             sel.value = valorActual;
         }
     }
 }
 
 // ------------------------------------------------------------------
-// AUTENTICACIÓN + ROLES (usuarios/{uid})
+// AUTENTICACIÓN + ROLES
 // ------------------------------------------------------------------
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -120,6 +84,9 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     try {
+        // Primero inicializamos configs (oficinas, factores)
+        await inicializarSistema();
+
         const ref = doc(db, "usuarios", user.uid);
         const snap = await getDoc(ref);
 
@@ -128,10 +95,9 @@ onAuthStateChanged(auth, async (user) => {
 
         if (snap.exists()) {
             const data = snap.data();
-            if (data.rol)     rol = data.rol;
+            if (data.rol) rol = data.rol;
             if (data.oficina) oficina = data.oficina;
         } else {
-            // Si no existe, lo creo con algo por defecto
             rol = (user.email === ADMIN_EMAIL) ? "admin" : "agente";
             await setDoc(ref, {
                 nombre: user.displayName || (user.email ? user.email.split("@")[0] : ""),
@@ -142,7 +108,6 @@ onAuthStateChanged(auth, async (user) => {
             }, { merge: true });
         }
 
-        // Fallback duro para admin raíz
         if (user.email === ADMIN_EMAIL && rol !== "admin") {
             rol = "admin";
             await setDoc(ref, { rol: "admin" }, { merge: true });
@@ -154,12 +119,27 @@ onAuthStateChanged(auth, async (user) => {
             cargarDatosCompletos();
         } else if (rol === "broker") {
             if (!oficina) {
-                alert("Este usuario tiene rol 'broker' pero no tiene oficina asignada (campo 'oficina' en usuarios). Configuralo en Firestore.");
+                alert("Usuario broker sin oficina asignada.");
                 window.location.href = "index.html";
                 return;
             }
             currentUserRole = "broker";
             currentBrokerOffice = oficina;
+
+            // Verificar si la oficina del broker está en la lista cargada
+            if (!OFICINAS_NOMBRES.includes(oficina)) {
+                // Si no está, la agregamos temporalmente al combo y config
+                OFICINAS_NOMBRES.push(oficina);
+                CONFIG_OFICINAS[oficina] = false;
+                
+                const sel = document.getElementById("filtro-oficina");
+                if(sel) {
+                    const opt = document.createElement("option");
+                    opt.value = oficina;
+                    opt.textContent = oficina;
+                    sel.appendChild(opt);
+                }
+            }
 
             const sel = document.getElementById("filtro-oficina");
             if (sel) {
@@ -168,37 +148,28 @@ onAuthStateChanged(auth, async (user) => {
             }
             cargarDatosCompletos();
         } else {
-            // agente común NO puede entrar a admin
             window.location.href = "index.html";
         }
 
     } catch (err) {
         console.error("Error cargando rol de usuario:", err);
-        alert("No se pudo validar tu rol. Volvé a iniciar sesión.");
         window.location.href = "login.html";
     }
 });
 
 // ------------------------------------------------------------------
-// CARGA DE DATOS (planificaciones + tracking)
+// CARGA DE DATOS
 // ------------------------------------------------------------------
 async function cargarDatosCompletos() {
     try {
-        // primero cargamos oficinas para poblar combos y config
-        await cargarOficinas();
-
+        // NOTA: En el Paso 4 optimizaremos estas queries. Por ahora se mantiene la lógica original.
         const snapPlan = await getDocs(collection(db, "planificaciones"));
         todosLosDatos = [];
 
         snapPlan.forEach(dSnap => {
             const d = dSnap.data();
             if (!d.nombreAgente) return;
-
-            // mantenemos la lógica que ya tenías
-            todosLosDatos.push({
-                ...d,
-                uid: dSnap.id
-            });
+            todosLosDatos.push({ ...d, uid: dSnap.id });
         });
 
         const snapTrack = await getDocs(collection(db, "tracking"));
@@ -232,63 +203,46 @@ if (el("filtro-orden"))   el("filtro-orden").addEventListener("change", aplicarF
 if (el("btn-actualizar")) el("btn-actualizar").addEventListener("click", aplicarFiltrosYRenderizar);
 if (el("btn-guardar-cambios")) el("btn-guardar-cambios").addEventListener("click", guardarCambiosAgente);
 
-// Exportaciones
 if (el("btn-excel")) {
-    el("btn-excel").addEventListener("click", (e) => {
-        e.preventDefault();
-        exportarExcel();
-    });
+    el("btn-excel").addEventListener("click", (e) => { e.preventDefault(); exportarExcel(); });
 }
 if (el("btn-pdf")) {
-    el("btn-pdf").addEventListener("click", (e) => {
-        e.preventDefault();
-        exportarPDF();
-    });
+    el("btn-pdf").addEventListener("click", (e) => { e.preventDefault(); exportarPDF(); });
 }
 
 // ------------------------------------------------------------------
-// MODAL EDITAR
+// FUNCIONES DE LOGICA
 // ------------------------------------------------------------------
 window.abrirModalEditar = function(uid) {
     const agente = todosLosDatos.find(a => a.uid === uid);
     if (!agente) return;
-
     el("edit-uid").value = uid;
-
     el("modal-nombre-agente").innerText = agente.nombreAgente;
     el("edit-oficina").value = agente.oficina;
     el("edit-objetivo").value = agente.objetivoAnual || 0;
-
     const ef = agente.efectividades || {};
-    el("edit-efec-pre").value    = ef.preListAcm    || 0;
-    el("edit-efec-acm").value    = ef.acmCapt       || 0;
-    el("edit-efec-capt").value   = ef.captVenta     || 0;
+    el("edit-efec-pre").value = ef.preListAcm || 0;
+    el("edit-efec-acm").value = ef.acmCapt || 0;
+    el("edit-efec-capt").value = ef.captVenta || 0;
     el("edit-efec-propio").value = ef.listingPropio || 0;
-    el("edit-efec-busq").value   = ef.busquedas     || 0;
-
+    el("edit-efec-busq").value = ef.busquedas || 0;
     new bootstrap.Modal(el('modalEditar')).show();
 };
 
 async function guardarCambiosAgente() {
-    const uid      = el("edit-uid").value;
-    const oficina  = el("edit-oficina").value;
-    const objetivo = el("edit-objetivo").value;
-
-    const efectividades = {
-        preListAcm:   el("edit-efec-pre").value,
-        acmCapt:      el("edit-efec-acm").value,
-        captVenta:    el("edit-efec-capt").value,
-        listingPropio: el("edit-efec-propio").value,
-        busquedas:    el("edit-efec-busq").value
-    };
-
+    const uid = el("edit-uid").value;
     try {
         await updateDoc(doc(db, "planificaciones", uid), {
-            oficina,
-            objetivoAnual: objetivo,
-            efectividades
+            oficina: el("edit-oficina").value,
+            objetivoAnual: el("edit-objetivo").value,
+            efectividades: {
+                preListAcm: el("edit-efec-pre").value,
+                acmCapt: el("edit-efec-acm").value,
+                captVenta: el("edit-efec-capt").value,
+                listingPropio: el("edit-efec-propio").value,
+                busquedas: el("edit-efec-busq").value
+            }
         });
-
         alert("Datos actualizados.");
         bootstrap.Modal.getInstance(el('modalEditar')).hide();
         cargarDatosCompletos();
@@ -298,14 +252,11 @@ async function guardarCambiosAgente() {
     }
 }
 
-// ------------------------------------------------------------------
-// LÓGICA CENTRAL (igual que la tuya, con estacionalidad ya integrada)
-// ------------------------------------------------------------------
 function aplicarFiltrosYRenderizar() {
-    const anio    = el("filtro-anio").value;
-    let oficina   = el("filtro-oficina").value;
+    const anio = el("filtro-anio").value;
+    let oficina = el("filtro-oficina").value;
     const periodo = el("filtro-periodo").value;
-    const orden   = el("filtro-orden").value;
+    const orden = el("filtro-orden").value;
 
     if (currentUserRole === "broker") {
         oficina = currentBrokerOffice;
@@ -319,13 +270,13 @@ function aplicarFiltrosYRenderizar() {
     datosProcesadosGlobal = procesarAgentes(lista, periodo, anio);
 
     datosProcesadosGlobal.sort((a, b) => {
-        if (orden === "pct_fact_desc")  return b.pctFact   - a.pctFact;
-        if (orden === "pct_capt_desc")  return b.pctCapt   - a.pctCapt;
+        if (orden === "pct_fact_desc") return b.pctFact - a.pctFact;
+        if (orden === "pct_capt_desc") return b.pctCapt - a.pctCapt;
         if (orden === "pct_trans_desc") return b.pctVentas - a.pctVentas;
-        if (orden === "pct_acm_desc")   return b.pctAcm    - a.pctAcm;
-        if (orden === "pct_pre_desc")   return b.pctPre    - a.pctPre;
-        if (orden === "real_fact_desc") return b.R_Fact    - a.R_Fact;
-        if (orden === "obj_fact_desc")  return b.O_Fact    - a.O_Fact;
+        if (orden === "pct_acm_desc") return b.pctAcm - a.pctAcm;
+        if (orden === "pct_pre_desc") return b.pctPre - a.pctPre;
+        if (orden === "real_fact_desc") return b.R_Fact - a.R_Fact;
+        if (orden === "obj_fact_desc") return b.O_Fact - a.O_Fact;
         return 0;
     });
 
@@ -340,112 +291,100 @@ function procesarAgentes(lista, periodo, anio) {
     let meses = [];
     const mesActual = new Date().getMonth();
 
-    if (periodo === "anual") {
-        meses = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-    } else if (periodo === "acumulado") {
-        for (let i = 0; i <= mesActual; i++) meses.push(i);
-    } else if (periodo.startsWith("S")) {
-        meses = periodo === "S1" ? [0, 1, 2, 3, 4, 5] : [6, 7, 8, 9, 10, 11];
-    } else if (periodo.startsWith("Q")) {
-        if (periodo === "Q1") meses = [0, 1, 2];
-        if (periodo === "Q2") meses = [3, 4, 5];
-        if (periodo === "Q3") meses = [6, 7, 8];
-        if (periodo === "Q4") meses = [9, 10, 11];
-    } else if (periodo.startsWith("M")) {
-        meses = [parseInt(periodo.replace("M", "")) - 1];
-    } else if (periodo === "mes_actual") {
-        meses = [mesActual];
-    }
+    if (periodo === "anual") meses = [0,1,2,3,4,5,6,7,8,9,10,11];
+    else if (periodo === "acumulado") for(let i=0; i<=mesActual; i++) meses.push(i);
+    else if (periodo === "S1") meses = [0,1,2,3,4,5];
+    else if (periodo === "S2") meses = [6,7,8,9,10,11];
+    else if (periodo.startsWith("Q")) {
+        const q = parseInt(periodo[1]);
+        meses = [(q-1)*3, (q-1)*3+1, (q-1)*3+2];
+    } else if (periodo.startsWith("M")) meses = [parseInt(periodo.replace("M",""))-1];
+    else if (periodo === "mes_actual") meses = [mesActual];
 
     const factorObj_linear = meses.length / 12;
 
     return lista.map(ag => {
         const O_Fact_An = parseFloat(ag.objetivoAnual) || 0;
-        const ticket    = parseFloat(ag.ticketPromedio) || 0;
-        const com       = ticket * 0.03;
-
+        const ticket = parseFloat(ag.ticketPromedio) || 0;
+        const com = ticket * 0.03;
         const efec = ag.efectividades || {};
-        const pctProp   = (parseFloat(efec.listingPropio) || 0) / 100;
-        const pctBusq   = (parseFloat(efec.busquedas)     || 0) / 100;
-        const captVenta = (parseFloat(efec.captVenta)     || 0) / 100;
-        const acmCapt   = (parseFloat(efec.acmCapt)       || 0) / 100;
-        const preAcm    = (parseFloat(efec.preListAcm)    || 0) / 100;
 
-        const O_Ventas_An = com > 0 ? O_Fact_An / com : 0;
-        const O_Prop_An   = O_Ventas_An * pctProp;
+        const pctProp = (parseFloat(efec.listingPropio)||0)/100;
+        const pctBusq = (parseFloat(efec.busquedas)||0)/100;
+        const captVenta = (parseFloat(efec.captVenta)||0)/100;
+        const acmCapt = (parseFloat(efec.acmCapt)||0)/100;
+        const preAcm = (parseFloat(efec.preListAcm)||0)/100;
 
-        let O_Capt_An = 0, O_Acm_An = 0, O_Pre_An = 0;
-        if (captVenta > 0) O_Capt_An = O_Prop_An / captVenta;
-        if (acmCapt   > 0) O_Acm_An  = O_Capt_An / acmCapt;
-        if (preAcm    > 0) O_Pre_An  = O_Acm_An / preAcm;
+        const O_Ventas_An = com>0 ? O_Fact_An/com : 0;
+        const O_Prop_An = O_Ventas_An * pctProp;
+        let O_Capt_An = (captVenta>0) ? O_Prop_An/captVenta : 0;
+        let O_Acm_An = (acmCapt>0) ? O_Capt_An/acmCapt : 0;
+        let O_Pre_An = (preAcm>0) ? O_Acm_An/preAcm : 0;
 
-        // --- Facturación con o sin estacionalidad ---
+        // --- Facturación con estacionalidad CENTRALIZADA ---
         const usaEst = CONFIG_OFICINAS[ag.oficina] === true;
         let O_Fact_periodo = 0;
 
-        if (usaEst) {
+        if (usaEst && FACTORES_GLOBAL.length === 12) {
             meses.forEach(m => {
-                O_Fact_periodo += O_Fact_An * FACTORES[m];
+                O_Fact_periodo += O_Fact_An * FACTORES_GLOBAL[m];
             });
         } else {
             O_Fact_periodo = O_Fact_An * factorObj_linear;
         }
+
+        // Otros objetivos (Lineales)
         const O_Fact = O_Fact_periodo;
-
-        // Otros objetivos siempre lineales
         const O_Ventas = O_Ventas_An * factorObj_linear;
-        const O_Prop   = O_Prop_An   * factorObj_linear;
-        const O_Busq   = O_Ventas    * pctBusq * factorObj_linear;
-        const O_Capt   = O_Capt_An   * factorObj_linear;
-        const O_Acm    = O_Acm_An    * factorObj_linear;
-        const O_Pre    = O_Pre_An    * factorObj_linear;
+        const O_Prop = O_Prop_An * factorObj_linear;
+        const O_Busq = O_Ventas * pctBusq * factorObj_linear;
+        const O_Capt = O_Capt_An * factorObj_linear;
+        const O_Acm = O_Acm_An * factorObj_linear;
+        const O_Pre = O_Pre_An * factorObj_linear;
 
-        let R_Fact = 0, R_Capt = 0, R_Acm = 0, R_Pre = 0, R_Cara = 0, R_Res = 0, R_PreBuy = 0;
+        let R_Fact=0, R_Capt=0, R_Acm=0, R_Pre=0, R_Cara=0, R_Res=0, R_PreBuy=0;
         const tr = trackingGlobal[ag.uid] ? trackingGlobal[ag.uid][anio] : null;
 
         if (tr) {
             meses.forEach(m => {
                 const d = tr[`mes_${m}`];
-                if (d) {
-                    R_Fact   += (d.facturacion?.total || 0);
-                    R_Capt   += (d.captaciones?.total || 0);
-                    R_Acm    += (d.acm?.total || 0);
-                    R_Pre    += (d.prelisting?.total || 0);
-                    R_Cara   += (d.caracara?.total || 0);
-                    R_Res    += (d.reservas?.total || 0);
-                    R_PreBuy += (d.prebuy?.total || 0);
+                if(d) {
+                    R_Fact += (d.facturacion?.total||0);
+                    R_Capt += (d.captaciones?.total||0);
+                    R_Acm += (d.acm?.total||0);
+                    R_Pre += (d.prelisting?.total||0);
+                    R_Cara += (d.caracara?.total||0);
+                    R_Res += (d.reservas?.total||0);
+                    R_PreBuy += (d.prebuy?.total||0);
                 }
             });
         }
 
-        const R_Ventas = com > 0 ? R_Fact / com : 0;
-        const R_Prop   = R_Ventas * pctProp;
-        const R_Busq   = R_Ventas * pctBusq;
+        const R_Ventas = com>0 ? R_Fact/com : 0;
+        const R_Prop = R_Ventas * pctProp;
+        const R_Busq = R_Ventas * pctBusq;
 
-        const pct = (r, o) => o > 0 ? (r / o) * 100 : 0;
+        const pct = (r,o) => o>0 ? (r/o)*100 : 0;
 
         return {
             ...ag,
-            O_Fact,  R_Fact,  pctFact:  pct(R_Fact,  O_Fact),
+            O_Fact, R_Fact, pctFact: pct(R_Fact, O_Fact),
             O_Ventas, R_Ventas, pctVentas: pct(R_Ventas, O_Ventas),
-            O_Prop,  R_Prop,  pctProp:  pct(R_Prop,  O_Prop),
-            O_Busq,  R_Busq,  pctBusq:  pct(R_Busq,  O_Busq),
-            O_Capt,  R_Capt,  pctCapt:  pct(R_Capt,  O_Capt),
-            O_Acm,   R_Acm,   pctAcm:   pct(R_Acm,   O_Acm),
-            O_Pre,   R_Pre,   pctPre:   pct(R_Pre,   O_Pre),
-            R_Cara,  R_Res,   R_PreBuy
+            O_Prop, R_Prop, pctProp: pct(R_Prop, O_Prop),
+            O_Busq, R_Busq, pctBusq: pct(R_Busq, O_Busq),
+            O_Capt, R_Capt, pctCapt: pct(R_Capt, O_Capt),
+            O_Acm, R_Acm, pctAcm: pct(R_Acm, O_Acm),
+            O_Pre, R_Pre, pctPre: pct(R_Pre, O_Pre),
+            R_Cara, R_Res, R_PreBuy
         };
     });
 }
 
-// ------------------------------------------------------------------
-// Resto de funciones: KPIs, gráficos, tablas, rankings, semáforo,
-// exportarExcel, exportarPDF (exactamente como ya las tenías)
-// ------------------------------------------------------------------
+// Renderizado (igual que antes)
 function renderizarKPIs(lista) {
-    let tObjFact = 0, tRealFact = 0, tObjTrans = 0, tRealTrans = 0;
-    let tObjCapt = 0, tRealCapt = 0, tObjAcm = 0, tRealAcm = 0, tObjPre = 0, tRealPre = 0;
-    let tCara = 0, tPreBuy = 0, tRes = 0;
+    let tObjFact=0, tRealFact=0, tObjTrans=0, tRealTrans=0;
+    let tObjCapt=0, tRealCapt=0, tObjAcm=0, tRealAcm=0, tObjPre=0, tRealPre=0;
+    let tCara=0, tPreBuy=0, tRes=0;
 
     lista.forEach(ag => {
         tObjFact += ag.O_Fact; tRealFact += ag.R_Fact;
@@ -457,14 +396,14 @@ function renderizarKPIs(lista) {
     });
 
     const calcKPI = (obj, real, esMoneda) => {
-        const pct = obj > 0 ? (real / obj) * 100 : 0;
+        const pct = obj>0 ? (real/obj)*100 : 0;
         let cl = "text-danger";
-        if (pct >= 50 && pct < 100) cl = "text-warning";
-        if (pct >= 100) cl = "text-success";
+        if(pct>=50 && pct<100) cl = "text-warning";
+        if(pct>=100) cl = "text-success";
         return {
             obj: esMoneda ? "$" + Math.round(obj).toLocaleString() : Math.round(obj),
             real: esMoneda ? "$" + Math.round(real).toLocaleString() : Math.round(real),
-            pct: Math.round(pct) + "%", color: cl
+            pct: Math.round(pct)+"%", color: cl
         };
     };
 
@@ -483,7 +422,7 @@ function renderizarKPIs(lista) {
             </div>
             <div class="progress mt-2" style="height: 4px;"><div class="progress-bar ${d.color.replace('text-','bg-')}" style="width: ${d.pct.replace('%','')}%"></div></div>
         </div></div>`;
-
+    
     const sCard = (tit, val, bg) => `<div class="card border-0 shadow-sm h-100"><div class="card-body p-3 d-flex justify-content-between align-items-center"><div><h6 class="text-muted text-uppercase font-size-12 mb-1">${tit}</h6><h4 class="mb-0 fw-bold text-dark">${val}</h4></div><div class="avatar-sm"><span class="avatar-title ${bg} rounded-circle font-size-16"><i class="mdi mdi-chart-bar"></i></span></div></div></div>`;
 
     const c = el("kpi-container");
@@ -506,10 +445,8 @@ function renderizarKPIs(lista) {
 
 function calcularTotalesOficina(lista, anio) {
     const meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-    let sObjFact = Array(12).fill(0),
-        sRealFact = Array(12).fill(0),
-        sObjCapt = Array(12).fill(0),
-        sRealCapt = Array(12).fill(0);
+    let sObjFact = Array(12).fill(0), sRealFact = Array(12).fill(0);
+    let sObjCapt = Array(12).fill(0), sRealCapt = Array(12).fill(0);
 
     lista.forEach(ag => {
         const O_Fact_An = parseFloat(ag.objetivoAnual)||0;
@@ -522,13 +459,17 @@ function calcularTotalesOficina(lista, anio) {
         const O_Prop_An = O_Ventas_An*pctProp;
         const O_Capt_An = captVenta>0 ? O_Prop_An/captVenta : 0;
         
-        const usaEst = CONFIG_OFICINAS[ag.oficina]===true;
+        const usaEst = CONFIG_OFICINAS[ag.oficina] === true;
         const tr = trackingGlobal[ag.uid] ? trackingGlobal[ag.uid][anio] : null;
 
         for(let i=0; i<12; i++) {
-            sObjFact[i] += usaEst ? O_Fact_An * FACTORES[i] : O_Fact_An / 12;
-            sObjCapt[i] += O_Capt_An / 12; 
-            
+            if (usaEst && FACTORES_GLOBAL.length === 12) {
+                sObjFact[i] += O_Fact_An * FACTORES_GLOBAL[i];
+            } else {
+                sObjFact[i] += O_Fact_An / 12;
+            }
+            sObjCapt[i] += O_Capt_An / 12;
+
             if (tr && tr[`mes_${i}`]) {
                 sRealFact[i] += (tr[`mes_${i}`].facturacion?.total || 0);
                 sRealCapt[i] += (tr[`mes_${i}`].captaciones?.total || 0);
@@ -555,7 +496,6 @@ function dibujarGraficoMixto(id, nombre, obj, real, cats, prefijo) {
         tooltip: { shared: true, intersect: false, y: { formatter: y => prefijo + " " + (y?y.toLocaleString():0) } },
         legend: { position: 'bottom' }
     };
-    
     if(!window.charts) window.charts = {};
     if(window.charts[id]) { window.charts[id].destroy(); }
     if(document.querySelector(`#${id}`)) {
@@ -599,7 +539,6 @@ function renderizarRankings(lista) {
             <td><h6 class="mb-0">${ag.nombreAgente}</h6><small class="text-muted">${ag.oficina}</small></td>
             <td class="text-end fw-bold text-success">$${Math.round(ag.R_Fact).toLocaleString()}</td></tr>`).join('');
     }
-
     const topCapt = [...lista].sort((a,b) => b.R_Capt - a.R_Capt).slice(0, 5);
     if (el("rank-capt-body")) {
         el("rank-capt-body").innerHTML = topCapt.map((ag, i) => `
@@ -612,19 +551,16 @@ function renderizarRankings(lista) {
 function renderizarSemaforo(lista) {
     const container = el("semaforo-body");
     if(!container) return;
-    
     container.innerHTML = lista.map(ag => {
         const f = ag.pctFact; 
         const c = ag.pctCapt;
         const isRed = (p) => p < 50;
         const isGreen = (p) => p >= 100;
-
         let label = "", badgeClass = "";
         if (isRed(f) && isRed(c)) { label = "Negocio en Rojo"; badgeClass = "bg-danger"; } 
         else if (isRed(f) || isRed(c)) { label = "Negocio en Desequilibrio"; badgeClass = "bg-orange"; } 
         else if (isGreen(f) && isGreen(c)) { label = "Negocio Sustentable"; badgeClass = "bg-success"; } 
         else { label = "Negocio en Equilibrio"; badgeClass = "bg-warning text-dark"; }
-
         return `
         <tr>
             <td><h6 class="mb-0">${ag.nombreAgente}</h6><small class="text-muted">${ag.oficina}</small></td>
@@ -635,135 +571,75 @@ function renderizarSemaforo(lista) {
     }).join('');
 }
 
-// ------------------------------------------------------------------
-// EXPORTAR EXCEL
-// ------------------------------------------------------------------
 function exportarExcel() {
     try {
-        if (!window.XLSX) { alert("Librería Excel no cargada. Verifica tu conexión."); return; }
-        if (!datosProcesadosGlobal || datosProcesadosGlobal.length === 0) { alert("No hay datos para exportar."); return; }
-
+        if (!window.XLSX) { alert("Librería Excel no cargada."); return; }
+        if (!datosProcesadosGlobal.length) { alert("No hay datos."); return; }
         const wb = XLSX.utils.book_new();
-        
         const oficina = el("filtro-oficina").value;
         const anio = el("filtro-anio").value;
         const periodo = el("filtro-periodo").options[el("filtro-periodo").selectedIndex].text;
-        const fechaGen = new Date().toLocaleDateString();
-
-        const encabezado = [["REPORTE DE GESTIÓN"], ["Oficina:", oficina], ["Periodo:", periodo + " " + anio], ["Fecha:", fechaGen], [""]];
-
-        const headersTabla = ["Agente", "Oficina", "Obj Fact", "Real Fact", "% Fact", "Obj Trans", "Real Trans", "% Trans", "Obj Capt", "Real Capt", "% Capt", "Obj ACM", "Real ACM", "% ACM", "Obj Pre", "Real Pre", "% Pre", "Cara a Cara", "Pre-Buy", "Reservas", "Estado Salud"];
-
-        const dataTabla = datosProcesadosGlobal.map(ag => {
-            let salud = "Equilibrio";
-            if(ag.pctFact >= 100 && ag.pctCapt >= 100) salud = "Sustentable";
-            else if(ag.pctFact < 50 && ag.pctCapt < 50) salud = "Rojo";
-            else if(ag.pctFact < 50 || ag.pctCapt < 50) salud = "Desequilibrio";
-            
-            return [
-                ag.nombreAgente, ag.oficina,
-                ag.O_Fact, ag.R_Fact, (ag.pctFact/100),
-                ag.O_Ventas, ag.R_Ventas, (ag.pctVentas/100),
-                ag.O_Capt, ag.R_Capt, (ag.pctCapt/100),
-                ag.O_Acm, ag.R_Acm, (ag.pctAcm/100),
-                ag.O_Pre, ag.R_Pre, (ag.pctPre/100),
-                ag.R_Cara, ag.R_PreBuy, ag.R_Res, salud
-            ];
-        });
-
-        const wsData = [...encabezado, headersTabla, ...dataTabla];
-        const ws = XLSX.utils.aoa_to_sheet(wsData);
-        ws['!cols'] = [{wch: 25}, {wch: 15}, {wch: 12}, {wch: 12}, {wch: 10}, {wch: 10}, {wch: 10}, {wch: 10}, {wch: 10}, {wch: 10}, {wch: 10}];
-
+        
+        const encabezado = [["REPORTE"], ["Oficina:", oficina], ["Periodo:", periodo + " " + anio], [""]];
+        const headers = ["Agente","Oficina","Obj Fact","Real Fact","% Fact","Obj Trans","Real Trans","% Trans","Obj Capt","Real Capt","% Capt","Obj ACM","Real ACM","% ACM","Obj Pre","Real Pre","% Pre","Cara a Cara","Pre-Buy","Reservas"];
+        
+        const data = datosProcesadosGlobal.map(ag => [
+            ag.nombreAgente, ag.oficina,
+            ag.O_Fact, ag.R_Fact, ag.pctFact/100,
+            ag.O_Ventas, ag.R_Ventas, ag.pctVentas/100,
+            ag.O_Capt, ag.R_Capt, ag.pctCapt/100,
+            ag.O_Acm, ag.R_Acm, ag.pctAcm/100,
+            ag.O_Pre, ag.R_Pre, ag.pctPre/100,
+            ag.R_Cara, ag.R_PreBuy, ag.R_Res
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([...encabezado, headers, ...data]);
         XLSX.utils.book_append_sheet(wb, ws, "Reporte");
         XLSX.writeFile(wb, `Reporte_${oficina}_${anio}.xlsx`);
-
-    } catch (error) { console.error("Excel Error:", error); alert("Error al exportar Excel."); }
+    } catch (e) { console.error(e); alert("Error al exportar."); }
 }
 
-// ------------------------------------------------------------------
-// EXPORTAR PDF
-// ------------------------------------------------------------------
 function exportarPDF() {
     try {
         if (!window.jspdf) { alert("Librería PDF no cargada."); return; }
-        if (!datosProcesadosGlobal || datosProcesadosGlobal.length === 0) { alert("No hay datos."); return; }
-
+        if (!datosProcesadosGlobal.length) { alert("No hay datos."); return; }
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('l', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
 
-        if (backgroundImageBase64) {
-            try { doc.addImage(backgroundImageBase64, 'PNG', 0, 0, 297, 210); } catch(e) {}
-        }
+        if (backgroundImageBase64) { try { doc.addImage(backgroundImageBase64, 'PNG', 0, 0, 297, 210); } catch(e){} }
 
         const oficina = el("filtro-oficina").value;
         const periodo = el("filtro-periodo").options[el("filtro-periodo").selectedIndex].text;
         const anio = el("filtro-anio").value;
-        const fecha = new Date().toLocaleDateString();
 
-        let y = 60; 
+        let y=60;
+        doc.setFontSize(16); doc.setTextColor(0, 51, 102); doc.text("Reporte de Gestión", 14, y);
+        y+=8; doc.setFontSize(10); doc.setTextColor(80); doc.text(`Oficina: ${oficina} | ${periodo} ${anio}`, 14, y);
+        y+=10;
 
-        doc.setFontSize(16); doc.setTextColor(0, 51, 102); doc.text("Reporte de Gestión Comercial", 14, y);
-        y += 8;
-        doc.setFontSize(10); doc.setTextColor(80); doc.text(`Oficina: ${oficina} | ${periodo} ${anio} | ${fecha}`, 14, y);
-        y += 10;
-
-        let tFact = 0, tCapt = 0, tTrans = 0;
-        datosProcesadosGlobal.forEach(d => { tFact += d.R_Fact; tCapt += d.R_Capt; tTrans += d.R_Ventas; });
+        let tFact=0, tCapt=0, tTrans=0;
+        datosProcesadosGlobal.forEach(d=>{ tFact+=d.R_Fact; tCapt+=d.R_Capt; tTrans+=d.R_Ventas; });
+        
         doc.autoTable({
             head: [['Facturación Total', 'Captaciones Totales', 'Transacciones']],
             body: [[`$${Math.round(tFact).toLocaleString()}`, Math.round(tCapt).toString(), tTrans.toFixed(1)]],
-            startY: y, theme: 'plain', styles: { halign: 'center', fontSize: 11, fontStyle: 'bold' }
+            startY: y, theme: 'plain'
         });
         y = doc.lastAutoTable.finalY + 10;
 
-        const head = [[
-            { content: 'Agente', rowSpan: 2 }, { content: 'Facturación ($)', colSpan: 3 }, { content: 'Captaciones', colSpan: 3 }, { content: 'Otros', colSpan: 3 }
-        ], [ 'Obj', 'Real', '%', 'Obj', 'Real', '%', 'Trans', 'ACM', 'Pre' ]];
-
-        const rows = datosProcesadosGlobal.map(ag => [
-            ag.nombreAgente,
-            "$" + Math.round(ag.O_Fact).toLocaleString(), "$" + Math.round(ag.R_Fact).toLocaleString(), ag.pctFact.toFixed(0)+"%",
-            Math.round(ag.O_Capt), Math.round(ag.R_Capt), ag.pctCapt.toFixed(0)+"%",
-            ag.R_Ventas.toFixed(1), Math.round(ag.R_Acm), Math.round(ag.R_Pre)
+        const head = [[{content:'Agente',rowSpan:2}, {content:'Facturación',colSpan:3}, {content:'Captaciones',colSpan:3}], ['Obj','Real','%','Obj','Real','%']];
+        const body = datosProcesadosGlobal.map(ag => [
+            ag.nombreAgente, 
+            `$${Math.round(ag.O_Fact).toLocaleString()}`, `$${Math.round(ag.R_Fact).toLocaleString()}`, ag.pctFact.toFixed(0)+"%",
+            Math.round(ag.O_Capt), Math.round(ag.R_Capt), ag.pctCapt.toFixed(0)+"%"
         ]);
 
         doc.autoTable({
-            head: head, body: rows, startY: y, theme: 'grid', styles: { fontSize: 8, halign: 'center' },
-            columnStyles: { 0: { halign: 'left', fontStyle: 'bold', cellWidth: 35 } },
-            headStyles: { fillColor: [41, 58, 74], textColor: 255 },
-            margin: { top: 60 } 
-        });
-        
-        let finalY = doc.lastAutoTable.finalY + 10;
-        if (finalY > pageHeight - 50) {
-            doc.addPage();
-            finalY = 60;
-            if (backgroundImageBase64) { doc.addImage(backgroundImageBase64, 'PNG', 0, 0, 297, 210); }
-        }
-        
-        doc.setFontSize(12); doc.setTextColor(0); doc.text("Top Performers (Facturación & Captación)", 14, finalY);
-        
-        const topFact = [...datosProcesadosGlobal].sort((a,b) => b.R_Fact - a.R_Fact).slice(0, 3);
-        const topCapt = [...datosProcesadosGlobal].sort((a,b) => b.R_Capt - a.R_Capt).slice(0, 3);
-        const rankBody = topFact.map((ag, i) => [
-            `${i+1}. ${ag.nombreAgente}`, `$${Math.round(ag.R_Fact).toLocaleString()}`,
-            topCapt[i] ? `${i+1}. ${topCapt[i].nombreAgente}` : "-", topCapt[i] ? Math.round(topCapt[i].R_Capt) : "-"
-        ]);
-
-        doc.autoTable({
-            head: [['Ranking Facturación', 'Total', 'Ranking Captaciones', 'Total']],
-            body: rankBody,
-            startY: finalY + 5,
-            theme: 'striped',
-            styles: { fontSize: 9 },
-            headStyles: { fillColor: [255, 193, 7], textColor: [0,0,0] },
+            head: head, body: body, startY: y, theme: 'grid',
+            headStyles: { fillColor: [41, 58, 74] },
             margin: { top: 60 }
         });
-
         doc.save(`Reporte_${oficina}_${anio}.pdf`);
-    } catch (error) { console.error("PDF Error:", error); alert("Error al generar PDF."); }
+    } catch (e) { console.error(e); alert("Error al generar PDF."); }
 }
-

@@ -33,6 +33,23 @@
             background-color: #f8f9fa;
             font-weight: bold;
         }
+        
+        /* ✅ FIX: Centrar placeholders en inputs tipo number */
+        .input-cell::placeholder {
+            text-align: center;
+        }
+        input[type="number"].input-cell::-webkit-input-placeholder {
+            text-align: center;
+        }
+        input[type="number"].input-cell::-moz-placeholder {
+            text-align: center;
+        }
+        input[type="number"].input-cell:-moz-placeholder {
+            text-align: center;
+        }
+        input[type="number"].input-cell:-ms-input-placeholder {
+            text-align: center;
+        }
     </style>
 </head>
 

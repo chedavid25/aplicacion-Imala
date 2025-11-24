@@ -43,12 +43,7 @@
                                         <div class="mb-3">
                                             <label class="form-label">Tu Oficina</label>
                                             <select class="form-select" id="reg-oficina">
-                                                <option value="" selected disabled>Selecciona una opción...</option>
-                                                <option value="RE/MAX BIG">RE/MAX BIG</option>
-                                                <option value="RE/MAX FORUM">RE/MAX FORUM</option>
-                                                <option value="RE/MAX FLOR">RE/MAX FLOR</option>
-                                                <option value="RE/MAX ACUERDO">RE/MAX ACUERDO</option>
-                                                <option value="CROAR PROPIEDADES">CROAR PROPIEDADES</option>
+                                                <option value="" selected disabled>Cargando oficinas...</option>
                                             </select>
                                         </div>
 
@@ -127,6 +122,7 @@
         import { getAuth, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
         import { app } from "./firebase-config.js";
+        import { ConfigService } from "./config-service.js";
 
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -134,6 +130,38 @@
 
         // --- CONFIGURACIÓN DE SEGURIDAD ---
         const CODIGO_SECRETO = "IMALA2025"; 
+
+        // --- CARGAR OFICINAS DINÁMICAMENTE ---
+        let oficinasDisponibles = [];
+        
+        async function cargarOficinas() {
+            try {
+                const config = await ConfigService.obtenerConfiguracionCompleta();
+                oficinasDisponibles = config.oficinas;
+                
+                const selectOficina = document.getElementById("reg-oficina");
+                selectOficina.innerHTML = '<option value="" selected disabled>Selecciona una opción...</option>';
+                
+                // Ordenar alfabéticamente
+                const oficinasOrdenadas = oficinasDisponibles.sort((a, b) => 
+                    a.nombre.localeCompare(b.nombre)
+                );
+                
+                oficinasOrdenadas.forEach(oficina => {
+                    const option = document.createElement("option");
+                    option.value = oficina.nombre;
+                    option.textContent = oficina.nombre;
+                    selectOficina.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error("Error cargando oficinas:", error);
+                alert("Error al cargar las oficinas. Por favor, recarga la página.");
+            }
+        }
+
+        // Cargar oficinas al iniciar
+        cargarOficinas();
 
         // Validación auxiliar
         function validarIngreso() {
@@ -160,76 +188,86 @@
         }
 
         // --- REGISTRO CON GOOGLE ---
-        document.getElementById("btn-google").addEventListener("click", async () => {
-            if (!validarIngreso()) return; 
+      // --- REGISTRO CON GOOGLE ---
+// --- REGISTRO CON GOOGLE ---
+document.getElementById("btn-google").addEventListener("click", async () => {
+    if (!validarIngreso()) return; 
 
-            try {
-                const result = await signInWithPopup(auth, googleProvider);
-                const user = result.user;
-                const oficina = document.getElementById("reg-oficina").value;
+    try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        const oficina = document.getElementById("reg-oficina").value;
+        
+        // ✅ Usar formato correcto: UID_ANIO
+        const anioActual = new Date().getFullYear();
+        const docId = `${user.uid}_${anioActual}`;
+        const docRef = doc(db, "planificaciones", docId);
+        const docSnap = await getDoc(docRef);
 
-                const docRef = doc(db, "planificaciones", user.uid);
-                const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+            await setDoc(docRef, {
+                nombreAgente: user.displayName || "Agente Google",
+                oficina: oficina,
+                emailUsuario: user.email,
+                fechaRegistro: new Date().toISOString(),
+                objetivoAnual: 0
+            });
+        }
+        window.location.href = "index.html";
 
-                if (!docSnap.exists()) {
-                    await setDoc(docRef, {
-                        nombreAgente: user.displayName || "Agente Google",
-                        oficina: oficina,
-                        emailUsuario: user.email,
-                        fechaRegistro: new Date().toISOString(),
-                        objetivoAnual: 0
-                    });
-                }
-                window.location.href = "index.html";
+    } catch (error) {
+        console.error("Error Google:", error);
+        alert("Error: " + error.message);
+    }
+});
 
-            } catch (error) {
-                console.error("Error Google:", error);
-                alert("Error: " + error.message);
-            }
+// --- REGISTRO CON EMAIL ---
+document.getElementById("btn-register").addEventListener("click", async () => {
+    if (!validarIngreso()) return; 
+
+    const nombre = document.getElementById("reg-nombre").value;
+    const email = document.getElementById("reg-email").value;
+    const password = document.getElementById("reg-password").value;
+    const oficina = document.getElementById("reg-oficina").value;
+
+    if (!nombre || !email || !password) {
+        alert("Completa todos los campos.");
+        return;
+    }
+
+    const btn = document.getElementById("btn-register");
+    btn.innerText = "Verificando...";
+    btn.disabled = true;
+
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // ✅ Usar formato correcto: UID_ANIO
+        const anioActual = new Date().getFullYear();
+        const docId = `${user.uid}_${anioActual}`;
+
+        await setDoc(doc(db, "planificaciones", docId), {
+            nombreAgente: nombre,
+            oficina: oficina,
+            emailUsuario: email,
+            fechaRegistro: new Date().toISOString(),
+            objetivoAnual: 0
         });
 
-        // --- REGISTRO CON EMAIL ---
-        document.getElementById("btn-register").addEventListener("click", async () => {
-            if (!validarIngreso()) return; 
+        alert("¡Cuenta creada con éxito!");
+        window.location.href = "index.html";
 
-            const nombre = document.getElementById("reg-nombre").value;
-            const email = document.getElementById("reg-email").value;
-            const password = document.getElementById("reg-password").value;
-            const oficina = document.getElementById("reg-oficina").value;
+    } catch (error) {
+        let mensaje = "Error al registrarse.";
+        if (error.code === 'auth/email-already-in-use') mensaje = "Este email ya está registrado.";
+        if (error.code === 'auth/weak-password') mensaje = "La contraseña es muy débil.";
+        alert(mensaje);
+        btn.innerText = "Registrarme con Email";
+        btn.disabled = false;
+    }
+});
 
-            if (!nombre || !email || !password) {
-                alert("Completa todos los campos.");
-                return;
-            }
-
-            const btn = document.getElementById("btn-register");
-            btn.innerText = "Verificando...";
-            btn.disabled = true;
-
-            try {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
-
-                await setDoc(doc(db, "planificaciones", user.uid), {
-                    nombreAgente: nombre,
-                    oficina: oficina,
-                    emailUsuario: email,
-                    fechaRegistro: new Date().toISOString(),
-                    objetivoAnual: 0
-                });
-
-                alert("¡Cuenta creada con éxito!");
-                window.location.href = "index.html";
-
-            } catch (error) {
-                let mensaje = "Error al registrarse.";
-                if (error.code === 'auth/email-already-in-use') mensaje = "Este email ya está registrado.";
-                if (error.code === 'auth/weak-password') mensaje = "La contraseña es muy débil.";
-                alert(mensaje);
-                btn.innerText = "Registrarme con Email";
-                btn.disabled = false;
-            }
-        });
     </script>
 </body>
 </html>

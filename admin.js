@@ -44,7 +44,7 @@ function poblarFiltroOficinas() {
     const sel = document.getElementById("filtro-oficina");
     if (!sel) return;
     
-    // Guardamos si el usuario ya había seleccionado algo manualmente antes de un refresco interno
+    // Guardamos si el usuario ya había seleccionado algo manualmente
     const valorPrevio = sel.value; 
     
     sel.innerHTML = `<option value="Todas">Todas las oficinas</option>`;
@@ -55,17 +55,26 @@ function poblarFiltroOficinas() {
         if (nombre === OFICINA_DEFAULT_DEMO) existeModelo = true;
     });
 
-    // LÓGICA DE PRIORIDAD:
-    // 1. Si es un Broker, esto se ignora (se fuerza su oficina más abajo).
+    // ✅ LÓGICA DE PRIORIDAD CON FALLBACK SEGURO:
+    // 1. Si es Broker, su oficina se fuerza más abajo (ignorar este default)
     // 2. Si es Admin:
-    //    - Si ya había elegido una oficina específica (navegando), la respetamos.
-    //    - Si estaba en "Todas" (o es la primera carga) y existe la Modelo, ponemos la Modelo.
-    if (valorPrevio && OFICINAS_NOMBRES.includes(valorPrevio) && valorPrevio !== "Todas") {
-        sel.value = valorPrevio;
-    } else if (existeModelo) {
-        sel.value = OFICINA_DEFAULT_DEMO;
+    if (currentUserRole === "admin") {
+        // Si ya había elegido una oficina específica, la respetamos
+        if (valorPrevio && valorPrevio !== "Todas" && OFICINAS_NOMBRES.includes(valorPrevio)) {
+            sel.value = valorPrevio;
+        } 
+        // Si existe la Oficina Modelo, la ponemos por defecto
+        else if (existeModelo) {
+            sel.value = OFICINA_DEFAULT_DEMO;
+        } 
+        // ✅ FALLBACK: Si no existe la Modelo, usar "Todas"
+        else {
+            sel.value = "Todas";
+            console.warn(`⚠️ La oficina "${OFICINA_DEFAULT_DEMO}" no existe. Usando "Todas" por defecto.`);
+        }
     }
 }
+
 
 function poblarOficinasModal() {
     const sel = document.getElementById("edit-oficina");

@@ -123,14 +123,13 @@ function procesarDatos(periodo) {
         if(periodo==="Q3") meses=[6,7,8]; if(periodo==="Q4") meses=[9,10,11];
     }
     else if (periodo === "mes_actual") meses = [mesActual];
-    // CORRECCIÓN: Manejar los meses individuales con el formato 'Mxx'
-    else if (periodo.startsWith("M")) {
-        const mesIndex = parseInt(periodo.substring(1));
+    // ✅ CORRECCIÓN FINAL: Meses individuales usan índices directos 0-11
+    else {
+        const mesIndex = parseInt(periodo);
         if (!isNaN(mesIndex) && mesIndex >= 0 && mesIndex <= 11) {
             meses.push(mesIndex);
         }
     }
-    // FIN CORRECCIÓN MESES
 
     // Factor de Tiempo para objetivos lineales
     const factor_linear = meses.length / 12;
@@ -138,7 +137,6 @@ function procesarDatos(periodo) {
     // Sumar Reales
     let R_Fact=0, R_Capt=0, R_Acm=0, R_Pre=0, R_Cara=0, R_Res=0, R_PreBuy=0;
     
-    // Usa la data ya cargada en la variable global trackingData
     if (trackingData) { 
         meses.forEach(m => {
             const dm = trackingData[`mes_${m}`];
@@ -161,7 +159,7 @@ function procesarDatos(periodo) {
     const comision = ticket * 0.03;
     const efec = p.efectividades || {};
     
-    // --- Objetivo Facturación (RESPETA ESTACIONALIDAD) ---
+    // Objetivo Facturación (RESPETA ESTACIONALIDAD)
     let factorObj = 0;
     const oficina = p.oficina;
     const usaEstacionalidad = CONFIG_OFICINAS[oficina] === true;
@@ -202,6 +200,8 @@ function procesarDatos(periodo) {
         O_Capt, R_Capt, O_Acm, R_Acm, O_Pre, R_Pre, O_Cara, R_Cara, R_Res, R_PreBuy
     };
 }
+
+
 
 
 // --- Resto de las funciones (renderKPI, dibujarGauge, etc.) sin cambios ---

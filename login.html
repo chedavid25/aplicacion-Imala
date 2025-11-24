@@ -13,7 +13,6 @@
 
     <style>
         .auth-bg {
-            /* Asegúrate de que la imagen esté en esta carpeta */
             background-image: url('assets/images/fondo-login.jpg') !important;
             background-size: cover !important;
             background-position: center !important;
@@ -123,7 +122,7 @@
                                                 <div class="testi-contain text-white">
                                                     <i class="bx bxs-quote-alt-left text-success display-6"></i>
                                                     <h4 class="mt-4 fw-medium lh-base text-white">
-                                                        “Lo que no se mide, no se puede mejorar. Tu planificación es el mapa de tu éxito.”
+                                                        "Lo que no se mide, no se puede mejorar. Tu planificación es el mapa de tu éxito."
                                                     </h4>
                                                     <div class="mt-4 pt-3 pb-5">
                                                         <div class="d-flex align-items-start">
@@ -140,7 +139,7 @@
                                                 <div class="testi-contain text-white">
                                                     <i class="bx bxs-quote-alt-left text-success display-6"></i>
                                                     <h4 class="mt-4 fw-medium lh-base text-white">
-                                                        “El éxito mental comienza con la claridad. Definir tus metas es el primer paso para hacerlas realidad.”
+                                                        "El éxito mental comienza con la claridad. Definir tus metas es el primer paso para hacerlas realidad."
                                                     </h4>
                                                     <div class="mt-4 pt-3 pb-5">
                                                         <div class="d-flex align-items-start">
@@ -157,7 +156,7 @@
                                                 <div class="testi-contain text-white">
                                                     <i class="bx bxs-quote-alt-left text-success display-6"></i>
                                                     <h4 class="mt-4 fw-medium lh-base text-white">
-                                                        “La disciplina de registrar tus avances es lo que separa un deseo de un objetivo cumplido.”
+                                                        "La disciplina de registrar tus avances es lo que separa un deseo de un objetivo cumplido."
                                                     </h4>
                                                     <div class="mt-4 pt-3 pb-5">
                                                         <div class="d-flex align-items-start">
@@ -172,7 +171,7 @@
 
                                         </div>
                                     </div>
-                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -193,53 +192,93 @@
 
     <script type="module">
         import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
         import { app } from "./firebase-config.js";
 
         const auth = getAuth(app);
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
 
+        // ✅ FUNCIÓN AUXILIAR: Verificar si el usuario está registrado
+        async function verificarUsuarioRegistrado(email) {
+            const planificacionesRef = collection(db, "planificaciones");
+            const q = query(planificacionesRef, where("emailUsuario", "==", email));
+            const querySnapshot = await getDocs(q);
+            return !querySnapshot.empty;
+        }
+
         // 1. LOGIN CON EMAIL
-        document.getElementById("btn-login").addEventListener("click", async () => {
-            const email = document.getElementById("email").value;
-            const password = document.getElementById("password").value;
+        // 1. LOGIN CON EMAIL
+document.getElementById("btn-login").addEventListener("click", async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
 
-            if (!email || !password) { alert("Ingresa email y contraseña"); return; }
+    if (!email || !password) { 
+        alert("Ingresa email y contraseña"); 
+        return; 
+    }
 
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                window.location.href = "index.html"; 
-            } catch (error) {
-                console.error(error);
-                alert("Error: Credenciales incorrectas.");
-            }
-        });
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-        // 2. LOGIN CON GOOGLE (Validando Registro Previo)
-        document.getElementById("btn-google-login").addEventListener("click", async () => {
-            try {
-                const result = await signInWithPopup(auth, googleProvider);
-                const user = result.user;
+        // ✅ EXCEPCIÓN: El admin siempre puede entrar
+        if (user.email === "contacto@imala.com.ar") {
+            window.location.href = "index.html";
+            return;
+        }
 
-                // Verificamos si este usuario tiene ficha en la Base de Datos
-                const docRef = doc(db, "planificaciones", user.uid);
-                const docSnap = await getDoc(docRef);
+        // ✅ Verificar que el usuario tenga al menos un año registrado
+        const estaRegistrado = await verificarUsuarioRegistrado(user.email);
+        
+        if (estaRegistrado) {
+            window.location.href = "index.html";
+        } else {
+            await signOut(auth);
+            alert("⚠️ Esta cuenta no está registrada en el sistema.\nPor favor ve a 'Regístrate aquí' para seleccionar tu Oficina primero.");
+        }
 
-                if (docSnap.exists()) {
-                    // Todo ok, tiene oficina asignada
-                    window.location.href = "index.html";
-                } else {
-                    // Es un usuario "huérfano" (sin oficina). Lo sacamos.
-                    await signOut(auth);
-                    alert("⚠️ Esta cuenta de Google no está registrada en el sistema.\nPor favor ve a 'Regístrate aquí' para seleccionar tu Oficina primero.");
-                }
+    } catch (error) {
+        console.error(error);
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+            alert("❌ Credenciales incorrectas. Verifica tu email y contraseña.");
+        } else {
+            alert("❌ Error: " + error.message);
+        }
+    }
+});
 
-            } catch (error) {
-                console.error(error);
-                alert("Error con Google: " + error.message);
-            }
-        });
+
+        // 2. LOGIN CON GOOGLE
+        // 2. LOGIN CON GOOGLE
+document.getElementById("btn-google-login").addEventListener("click", async () => {
+    try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+
+        // ✅ EXCEPCIÓN: El admin siempre puede entrar
+        if (user.email === "contacto@imala.com.ar") {
+            window.location.href = "index.html";
+            return;
+        }
+
+        // ✅ Verificar que el usuario tenga al menos un año registrado
+        const estaRegistrado = await verificarUsuarioRegistrado(user.email);
+
+        if (estaRegistrado) {
+            window.location.href = "index.html";
+        } else {
+            await signOut(auth);
+            alert("⚠️ Esta cuenta de Google no está registrada en el sistema.\nPor favor ve a 'Regístrate aquí' para seleccionar tu Oficina primero.");
+        }
+
+    } catch (error) {
+        console.error(error);
+        alert("❌ Error con Google: " + error.message);
+    }
+});
+
+
     </script>
 </body>
 </html>

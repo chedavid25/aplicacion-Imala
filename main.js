@@ -177,22 +177,34 @@ if (btnGuardar) {
         if (!currentUser) return;
         const txtOrig = btnGuardar.innerHTML;
         
+        // ✅ VALIDACIÓN 1: Verificar que los campos estén completos
         if (!validarPlanificacionCompleta()) return;
         
+        // ✅ VALIDACIÓN 2: Verificar que haya calculado la gestión
+        const datosCalc = obtenerDatosFormulario();
+        if (!datosCalc) { 
+            alert("❌ Primero debes CALCULAR TU GESTIÓN haciendo clic en 'Calcular Gestión' antes de guardar."); 
+            return; 
+        }
+        
+        // ✅ VALIDACIÓN 3: Verificar que los resultados tengan sentido
+        if (datosCalc.ventasTotales <= 0 || datosCalc.comisionPromedio <= 0) {
+            alert("❌ Los valores calculados no son válidos. Revisa tus datos e intenta de nuevo.");
+            return;
+        }
+        
         btnGuardar.innerHTML = `<i class="bx bx-loader bx-spin font-size-16 align-middle me-2"></i> Guardando...`;
+        btnGuardar.disabled = true;
 
         try {
-            const datosCalc = obtenerDatosFormulario();
-            if (!datosCalc) { alert("Calculá primero."); return; }
-            
             const oficina = document.getElementById('miOficina').value;
             const year = document.getElementById('selector-plan-anio').value;
             
             const data = {
                 nombreAgente: document.getElementById('miNombre').value,
                 oficina: oficina, 
-                gastoMensual: document.querySelector('.gastoMensual').value,
-                condicionAgente: document.querySelector('.condicionDeAgente').value,
+                gastoMensual: parseFloat(document.querySelector('.gastoMensual').value) || 0,
+                condicionAgente: parseFloat(document.querySelector('.condicionDeAgente').value) || 0,
                 objetivoAnual: datosCalc.objetivo,
                 ticketPromedio: datosCalc.ticket,
                 efectividades: {
@@ -207,20 +219,31 @@ if (btnGuardar) {
                 },
                 emailUsuario: currentUser.email,
                 fechaActualizacion: new Date().toISOString(),
-                anio: parseInt(year) // <--- CLAVE PARA ESCALABILIDAD
+                anio: parseInt(year)
             };
 
             await setDoc(doc(db, "planificaciones", `${currentUser.uid}_${year}`), data);
-            alert(`✅ Planificación ${year} guardada.`);
+            alert(`✅ Planificación ${year} guardada exitosamente.`);
 
         } catch (error) {
             console.error("Error guardando:", error);
-            alert("❌ Error al guardar.");
+            
+            // ✅ MENSAJES DE ERROR MEJORADOS
+            if (error.code === 'permission-denied') {
+                alert("❌ No tienes permisos para guardar. Contacta al administrador.");
+            } else if (error.code === 'unavailable') {
+                alert("❌ Sin conexión a internet. Intenta de nuevo cuando tengas conexión.");
+            } else {
+                alert("❌ Error al guardar: " + error.message);
+            }
+            
         } finally {
             btnGuardar.innerHTML = txtOrig;
+            btnGuardar.disabled = false;
         }
     });
 }
+
 
 // ------------------------------------------------------------------
 // PDF

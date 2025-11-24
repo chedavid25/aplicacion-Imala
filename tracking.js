@@ -290,12 +290,28 @@ async function guardarTrackingMesActual() {
 function leerFila(id) {
     const fila = document.querySelector(`tr[data-id="${id}"]`);
     if (!fila) return { sem1:0, sem2:0, sem3:0, sem4:0, sem5:0, total:0 };
+    
     const inputs = fila.querySelectorAll(".input-cell");
-    let total=0; const valores=[];
-    for(let i=0; i<5; i++) {
-        const v = parseFloat(inputs[i]?.value)||0;
-        valores.push(v);
-        total+=v;
+    if (inputs.length < 5) return { sem1:0, sem2:0, sem3:0, sem4:0, sem5:0, total:0 };
+    
+    let total = 0;
+    const valores = [];
+    
+    for(let i = 0; i < 5; i++) {
+        // ✅ CORRECCIÓN: Manejar inputs vacíos y valores inválidos
+        const valor = inputs[i]?.value;
+        const v = (valor === '' || valor === null || valor === undefined) ? 0 : parseFloat(valor);
+        const vFinal = isNaN(v) ? 0 : v;
+        valores.push(vFinal);
+        total += vFinal;
     }
-    return { sem1:valores[0], sem2:valores[1], sem3:valores[2], sem4:valores[3], sem5:valores[4], total };
+    
+    return { 
+        sem1: valores[0], 
+        sem2: valores[1], 
+        sem3: valores[2], 
+        sem4: valores[3], 
+        sem5: valores[4], 
+        total 
+    };
 }

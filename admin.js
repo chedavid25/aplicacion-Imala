@@ -129,11 +129,27 @@ async function cargarDatosCompletos() {
     try {
         const anio = parseInt(document.getElementById("filtro-anio").value) || new Date().getFullYear();
         
-        // Planificaciones
-        const qPlan = query(collection(db, "planificaciones"), where("anio", "==", anio));
+        // ✅ Planificaciones - CON FILTRO POR OFICINA SI ES BROKER
+        let qPlan;
+        if (currentUserRole === "broker" && currentBrokerOffice) {
+            // 🔥 BROKER: Filtra directamente en Firestore por oficina
+            console.log("🔍 Broker cargando solo oficina:", currentBrokerOffice);
+            qPlan = query(
+                collection(db, "planificaciones"), 
+                where("anio", "==", anio),
+                where("oficina", "==", currentBrokerOffice)
+            );
+        } else {
+            // ADMIN: Trae todas las oficinas
+            console.log("🔍 Admin cargando todas las oficinas");
+            qPlan = query(collection(db, "planificaciones"), where("anio", "==", anio));
+        }
+        
         const snapPlan = await getDocs(qPlan);
         todosLosDatos = [];
         snapPlan.forEach(d => todosLosDatos.push({ ...d.data(), uid: d.id }));
+        
+        console.log("📊 Datos cargados:", todosLosDatos.length, "agentes");
 
         // Tracking
         const qTrack = query(collection(db, "tracking"), where("anio", "==", anio));
@@ -145,10 +161,16 @@ async function cargarDatosCompletos() {
             if (!trackingGlobal[uid]) trackingGlobal[uid] = {};
             trackingGlobal[uid][anio] = d.data();
         });
+        
+        console.log("📈 Tracking cargado para", Object.keys(trackingGlobal).length, "usuarios");
 
         aplicarFiltrosYRenderizar();
-    } catch (e) { console.error("Error cargar:", e); }
+    } catch (e) { 
+        console.error("❌ Error cargar:", e); 
+        alert("Error cargando datos: " + e.message);
+    }
 }
+
 
 // Listeners
 const el = (id) => document.getElementById(id);

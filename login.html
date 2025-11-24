@@ -192,93 +192,83 @@
 
     <script type="module">
         import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
         import { app } from "./firebase-config.js";
 
         const auth = getAuth(app);
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
 
-        // ✅ FUNCIÓN AUXILIAR: Verificar si el usuario está registrado
-        async function verificarUsuarioRegistrado(email) {
-            const planificacionesRef = collection(db, "planificaciones");
-            const q = query(planificacionesRef, where("emailUsuario", "==", email));
-            const querySnapshot = await getDocs(q);
-            return !querySnapshot.empty;
+        // Verificar existencia de perfil con rol
+        async function verificarUsuarioRegistradoUid(uid) {
+            const usuarioRef = doc(db, "usuarios", uid);
+            const usuarioSnap = await getDoc(usuarioRef);
+            return usuarioSnap.exists() && usuarioSnap.data().rol;
         }
 
-        // 1. LOGIN CON EMAIL
-        // 1. LOGIN CON EMAIL
-document.getElementById("btn-login").addEventListener("click", async () => {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+        // LOGIN POR EMAIL
+        document.getElementById("btn-login").addEventListener("click", async () => {
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
 
-    if (!email || !password) { 
-        alert("Ingresa email y contraseña"); 
-        return; 
-    }
+            if (!email || !password) { 
+                alert("Ingresa email y contraseña"); 
+                return; 
+            }
 
-    try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
 
-        // ✅ EXCEPCIÓN: El admin siempre puede entrar
-        if (user.email === "contacto@imala.com.ar") {
-            window.location.href = "index.html";
-            return;
-        }
+                if (user.email === "contacto@imala.com.ar") {
+                    window.location.href = "index.html";
+                    return;
+                }
 
-        // ✅ Verificar que el usuario tenga al menos un año registrado
-        const estaRegistrado = await verificarUsuarioRegistrado(user.email);
-        
-        if (estaRegistrado) {
-            window.location.href = "index.html";
-        } else {
-            await signOut(auth);
-            alert("⚠️ Esta cuenta no está registrada en el sistema.\nPor favor ve a 'Regístrate aquí' para seleccionar tu Oficina primero.");
-        }
+                const estaRegistradoUid = await verificarUsuarioRegistradoUid(user.uid);
 
-    } catch (error) {
-        console.error(error);
-        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-            alert("❌ Credenciales incorrectas. Verifica tu email y contraseña.");
-        } else {
-            alert("❌ Error: " + error.message);
-        }
-    }
-});
+                if (estaRegistradoUid) {
+                    window.location.href = "index.html";
+                } else {
+                    await signOut(auth);
+                    alert("⚠️ Esta cuenta no está registrada en el sistema. Por favor ve a 'Regístrate aquí' para seleccionar tu Oficina primero.");
+                }
+            } catch (error) {
+                console.error(error);
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+                    alert("❌ Credenciales incorrectas. Verifica tu email y contraseña.");
+                } else {
+                    alert("❌ Error: " + error.message);
+                }
+            }
+        });
 
+        // LOGIN CON GOOGLE
+        document.getElementById("btn-google-login").addEventListener("click", async () => {
+            try {
+                const result = await signInWithPopup(auth, googleProvider);
+                const user = result.user;
 
-        // 2. LOGIN CON GOOGLE
-        // 2. LOGIN CON GOOGLE
-document.getElementById("btn-google-login").addEventListener("click", async () => {
-    try {
-        const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
+                if (user.email === "contacto@imala.com.ar") {
+                    window.location.href = "index.html";
+                    return;
+                }
 
-        // ✅ EXCEPCIÓN: El admin siempre puede entrar
-        if (user.email === "contacto@imala.com.ar") {
-            window.location.href = "index.html";
-            return;
-        }
+                const estaRegistradoUid = await verificarUsuarioRegistradoUid(user.uid);
 
-        // ✅ Verificar que el usuario tenga al menos un año registrado
-        const estaRegistrado = await verificarUsuarioRegistrado(user.email);
-
-        if (estaRegistrado) {
-            window.location.href = "index.html";
-        } else {
-            await signOut(auth);
-            alert("⚠️ Esta cuenta de Google no está registrada en el sistema.\nPor favor ve a 'Regístrate aquí' para seleccionar tu Oficina primero.");
-        }
-
-    } catch (error) {
-        console.error(error);
-        alert("❌ Error con Google: " + error.message);
-    }
-});
-
+                if (estaRegistradoUid) {
+                    window.location.href = "index.html";
+                } else {
+                    await signOut(auth);
+                    alert("⚠️ Esta cuenta de Google no está registrada en el sistema. Por favor ve a 'Regístrate aquí' para seleccionar tu Oficina primero.");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("❌ Error con Google: " + error.message);
+            }
+        });
 
     </script>
 </body>
 </html>
+

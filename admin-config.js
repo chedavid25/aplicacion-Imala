@@ -1,316 +1,290 @@
-// admin-config.js
-// Pantalla para administrar oficinas y usuarios desde la app
+// admin-config.js - Optimizado para Escalar (Paso 5)
 
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
-    getAuth,
-    onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-
-import {
-    getFirestore,
-    collection,
-    getDocs,
-    doc,
-    updateDoc,
-    addDoc
+    getFirestore, collection, getDocs, doc, updateDoc, addDoc, query, limit, where, orderBy, startAfter
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-
 import { app } from "./firebase-config.js";
+import { ConfigService } from "./config-service.js";
 
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db = getFirestore(app);
 
-// Admin raíz por si el rol está mal cargado en Firestore
 const ADMIN_EMAIL = "contacto@imala.com.ar";
 
-// Cache en memoria
-let oficinasCache = [];   // {id, nombre, usaEstacionalidad}
-let usuariosCache = [];   // {id, ...data}
+let oficinasCache = [];
+let usuariosCache = []; // Solo guarda los cargados actualmente en la tabla
 
+// Referencias DOM
 const el = (id) => document.getElementById(id);
 
 // --------------------------------------------------
-// 1) CONTROL DE ACCESO: SOLO ADMIN
+// 1) AUTH & INICIALIZACION
 // --------------------------------------------------
 onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = "login.html";
-        return;
-    }
+    if (!user) { window.location.href = "login.html"; return; }
 
+    // Verificar Rol
+    // Nota: Podríamos usar el sessionStorage del header, pero por seguridad en admin
+    // preferimos validar una vez contra Firestore al entrar.
     try {
-        // Cargamos su documento en "usuarios" para ver el rol
-        const ref = doc(db, "usuarios", user.uid);
-        const snap = await getDocs(collection(db, "usuarios"));
-        let rol = "agente";
-
-        // Buscar el documento del usuario actual
-        snap.forEach(d => {
-            if (d.id === user.uid) {
-                const data = d.data();
-                if (data.rol) rol = data.rol;
-            }
-        });
-
-        // Respaldo: el mail de admin raíz siempre es admin
-        if (user.email === ADMIN_EMAIL) {
-            rol = "admin";
+        const snap = await getDocs(query(collection(db, "usuarios"), where("emailAuth", "==", user.email)));
+        let esAdmin = (user.email === ADMIN_EMAIL);
+        
+        if(!esAdmin && !snap.empty) {
+            // Buscar si tiene rol admin en su documento
+            snap.forEach(d => { if(d.data().rol === 'admin') esAdmin = true; });
         }
 
-        if (rol !== "admin") {
-            alert("No tenés permisos para ver esta pantalla.");
+        if (!esAdmin) {
+            alert("Acceso denegado.");
             window.location.href = "index.html";
             return;
         }
 
-        // Si llegó hasta acá, es admin → cargamos data
+        // Si es Admin:
         await cargarOficinas();
-        await cargarUsuarios();
+        await cargarUsuariosInicial(); // Carga optimizada (limit 20)
         inicializarEventos();
 
-    } catch (error) {
-        console.error("Error validando rol:", error);
-        alert("Error validando permisos. Volvé a iniciar sesión.");
-        window.location.href = "login.html";
-    }
+    } catch (e) { console.error(e); }
 });
 
 // --------------------------------------------------
-// 2) CARGA DE OFICINAS
+// 2) GESTIÓN DE OFICINAS
 // --------------------------------------------------
 async function cargarOficinas() {
     try {
+        const config = await ConfigService.obtenerConfiguracionCompleta();
+        // Nota: ConfigService devuelve [{nombre, usaEstacionalidad}], pero acá necesitamos editar.
+        // Así que mejor leemos la colección raw para tener los IDs de documento para poder editar/borrar.
+        
         const snap = await getDocs(collection(db, "oficinas"));
         oficinasCache = [];
-
-        snap.forEach(docSnap => {
-            const data = docSnap.data();
-            oficinasCache.push({
-                id: docSnap.id,
-                nombre: data.nombre || "",
-                usaEstacionalidad: !!data.usaEstacionalidad
-            });
+        snap.forEach(d => {
+            oficinasCache.push({ id: d.id, ...d.data() });
         });
-
-        renderizarTablaOficinas();
-    } catch (error) {
-        console.error("Error cargando oficinas:", error);
-        alert("No se pudieron cargar las oficinas.");
-    }
+        renderizarOficinas();
+    } catch (e) { console.error("Error oficinas:", e); }
 }
 
-function renderizarTablaOficinas() {
+function renderizarOficinas() {
     const tbody = el("tabla-oficinas-body");
-    if (!tbody) return;
-
     tbody.innerHTML = oficinasCache.map(of => `
         <tr>
             <td>${of.nombre}</td>
-            <td class="text-center">
-                ${of.usaEstacionalidad
-                    ? '<span class="badge bg-success">Sí</span>'
-                    : '<span class="badge bg-secondary">No</span>'}
-            </td>
+            <td class="text-center">${of.usaEstacionalidad ? '<span class="badge bg-success">Sí</span>' : '<span class="badge bg-light text-dark">No</span>'}</td>
             <td class="text-end">
-                <button class="btn btn-sm btn-outline-primary btn-edit-oficina"
-                        data-id="${of.id}">
+                <button class="btn btn-sm btn-soft-primary btn-edit-oficina" data-id="${of.id}"><i class="mdi mdi-pencil"></i></button>
+            </td>
+        </tr>
+    `).join("");
+
+    tbody.querySelectorAll(".btn-edit-oficina").forEach(b => {
+        b.addEventListener("click", () => cargarFormOficina(b.dataset.id));
+    });
+}
+
+function cargarFormOficina(id) {
+    const of = oficinasCache.find(o => o.id === id);
+    if(of) {
+        el("oficina-id").value = of.id;
+        el("oficina-nombre").value = of.nombre;
+        el("oficina-estacionalidad").checked = of.usaEstacionalidad;
+    }
+}
+
+async function guardarOficina(e) {
+    e.preventDefault();
+    const id = el("oficina-id").value;
+    const nombre = el("oficina-nombre").value.trim();
+    const usa = el("oficina-estacionalidad").checked;
+    if(!nombre) return alert("Falta nombre");
+
+    try {
+        if(id) await updateDoc(doc(db, "oficinas", id), { nombre, usaEstacionalidad: usa });
+        else await addDoc(collection(db, "oficinas"), { nombre, usaEstacionalidad: usa });
+        
+        el("form-oficina").reset();
+        el("oficina-id").value = "";
+        await cargarOficinas();
+        alert("Oficina guardada");
+    } catch(err) { alert("Error al guardar oficina"); }
+}
+
+// --------------------------------------------------
+// 3) GESTIÓN DE USUARIOS (OPTIMIZADA)
+// --------------------------------------------------
+
+// Carga inicial: Últimos 20 registrados o primeros 20 alfabéticos
+async function cargarUsuariosInicial() {
+    mostrarLoading(true);
+    try {
+        // Traer los primeros 20 usuarios ordenados por email o nombre
+        // Usamos emailAuth porque suele estar presente
+        const q = query(collection(db, "usuarios"), orderBy("emailAuth"), limit(20));
+        const snap = await getDocs(q);
+        procesarYRenderizarUsuarios(snap);
+    } catch (e) { console.error(e); }
+    mostrarLoading(false);
+}
+
+async function buscarUsuario() {
+    const texto = el("buscador-usuario").value.trim();
+    if (!texto) return cargarUsuariosInicial();
+
+    mostrarLoading(true);
+    try {
+        // Búsqueda exacta por email (más rápida y barata)
+        let q = query(collection(db, "usuarios"), where("emailAuth", "==", texto));
+        let snap = await getDocs(q);
+
+        if (snap.empty) {
+            // Si falla, intento búsqueda por nombre (prefijo)
+            // Nota: Esto requiere que el nombre en DB sea exacto al inicio (Case Sensitive en Firestore)
+            // Para producción real se recomienda Algolia, pero esto sirve para MVP
+            const textoEnd = texto + '\uf8ff';
+            q = query(collection(db, "usuarios"), 
+                where("nombre", ">=", texto), 
+                where("nombre", "<=", textoEnd), 
+                limit(10));
+            snap = await getDocs(q);
+        }
+
+        procesarYRenderizarUsuarios(snap);
+
+    } catch (e) { 
+        console.error("Error búsqueda:", e); 
+        alert("Error buscando. Asegurate de escribir bien el email completo.");
+    }
+    mostrarLoading(false);
+}
+
+function procesarYRenderizarUsuarios(snap) {
+    usuariosCache = [];
+    snap.forEach(d => usuariosCache.push({ id: d.id, ...d.data() }));
+    renderizarUsuarios();
+}
+
+function renderizarUsuarios() {
+    const tbody = el("tabla-usuarios-body");
+    const sinRes = el("sin-resultados");
+    
+    tbody.innerHTML = "";
+    if (usuariosCache.length === 0) {
+        sinRes.classList.remove("d-none");
+        return;
+    }
+    sinRes.classList.add("d-none");
+
+    const badgeRol = (r) => {
+        if (r==='admin') return '<span class="badge bg-danger">ADMIN</span>';
+        if (r==='broker') return '<span class="badge bg-info">BROKER</span>';
+        return '<span class="badge bg-secondary">AGENTE</span>';
+    };
+
+    tbody.innerHTML = usuariosCache.map(u => `
+        <tr>
+            <td class="fw-bold">${u.nombre || 'Sin Nombre'}</td>
+            <td>${u.emailAuth || u.email || '-'}</td>
+            <td>${badgeRol(u.rol)}</td>
+            <td>${u.oficina || '<span class="text-muted small">Sin Asignar</span>'}</td>
+            <td class="text-end">
+                <button class="btn btn-sm btn-primary btn-abrir-modal" data-uid="${u.id}">
                     Editar
                 </button>
             </td>
         </tr>
     `).join("");
 
-    // Asignar eventos de editar
-    tbody.querySelectorAll(".btn-edit-oficina").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const id = btn.getAttribute("data-id");
-            cargarOficinaEnFormulario(id);
-        });
+    // Listeners
+    tbody.querySelectorAll(".btn-abrir-modal").forEach(b => {
+        b.addEventListener("click", () => abrirModalUsuario(b.dataset.uid));
     });
 }
 
-function cargarOficinaEnFormulario(id) {
-    const of = oficinasCache.find(o => o.id === id);
-    if (!of) return;
-
-    el("oficina-id").value = of.id;
-    el("oficina-nombre").value = of.nombre;
-    el("oficina-estacionalidad").checked = of.usaEstacionalidad;
+function mostrarLoading(show) {
+    const spinner = el("loading-users");
+    if(show) spinner.classList.remove("d-none");
+    else spinner.classList.add("d-none");
 }
 
 // --------------------------------------------------
-// 3) CARGA DE USUARIOS
+// 4) MODAL DE EDICIÓN DE USUARIO
 // --------------------------------------------------
-async function cargarUsuarios() {
-    try {
-        const snap = await getDocs(collection(db, "usuarios"));
-        usuariosCache = [];
+async function abrirModalUsuario(uid) {
+    const user = usuariosCache.find(u => u.id === uid);
+    if (!user) return;
 
-        snap.forEach(docSnap => {
-            const data = docSnap.data();
-            usuariosCache.push({
-                id: docSnap.id,
-                ...data
-            });
-        });
+    el("edit-user-uid").value = uid;
+    el("edit-user-nombre").value = user.nombre || "";
+    el("edit-user-email").value = user.emailAuth || user.email || "";
+    el("edit-user-rol").value = user.rol || "agente";
 
-        renderizarTablaUsuarios();
-    } catch (error) {
-        console.error("Error cargando usuarios:", error);
-        alert("No se pudieron cargar los usuarios.");
-    }
-}
-
-function renderizarTablaUsuarios() {
-    const tbody = el("tabla-usuarios-body");
-    if (!tbody) return;
-
-    const opcionesOficina = oficinasCache
-        .map(of => `<option value="${of.nombre}">${of.nombre}</option>`)
-        .join("");
-
-    tbody.innerHTML = usuariosCache.map(u => {
-        const nombre  = u.nombre || "(sin nombre)";
-        const email   = u.emailAuth || u.email || "";
-        const rol     = u.rol || "agente";
-        const oficina = u.oficina || "";
-
-        return `
-            <tr data-uid="${u.id}">
-                <td>
-                    <strong>${nombre}</strong><br>
-                    <span class="text-muted small">${u.id}</span>
-                </td>
-                <td>${email}</td>
-                <td>
-                    <select class="form-select form-select-sm sel-rol">
-                        <option value="admin"   ${rol==="admin"   ? "selected":""}>admin</option>
-                        <option value="broker"  ${rol==="broker"  ? "selected":""}>broker</option>
-                        <option value="agente"  ${rol==="agente"  ? "selected":""}>agente</option>
-                    </select>
-                </td>
-                <td>
-                    <select class="form-select form-select-sm sel-oficina">
-                        <option value="">(sin oficina)</option>
-                        ${opcionesOficina}
-                    </select>
-                </td>
-                <td class="text-end">
-                    <button class="btn btn-sm btn-primary btn-guardar-usuario">
-                        Guardar
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join("");
-
-    // Asignar la oficina actual en cada fila
-    tbody.querySelectorAll("tr").forEach(tr => {
-        const uid = tr.getAttribute("data-uid");
-        const user = usuariosCache.find(u => u.id === uid);
-        if (!user) return;
-        const selOf = tr.querySelector(".sel-oficina");
-        if (selOf && user.oficina) {
-            selOf.value = user.oficina;
-        }
+    // Llenar select de oficinas en el modal (desde cache)
+    const selOficina = el("edit-user-oficina");
+    selOficina.innerHTML = '<option value="">Sin asignar</option>';
+    
+    // Ordenar oficinas A-Z
+    const oficinasOrdenadas = [...oficinasCache].sort((a,b) => a.nombre.localeCompare(b.nombre));
+    
+    oficinasOrdenadas.forEach(of => {
+        const selected = (user.oficina === of.nombre) ? "selected" : "";
+        selOficina.innerHTML += `<option value="${of.nombre}" ${selected}>${of.nombre}</option>`;
     });
 
-    // Eventos de guardar fila
-    tbody.querySelectorAll(".btn-guardar-usuario").forEach(btn => {
-        btn.addEventListener("click", async () => {
-            const tr  = btn.closest("tr");
-            const uid = tr.getAttribute("data-uid");
-            await guardarFilaUsuario(uid, tr);
-        });
-    });
+    new bootstrap.Modal(el('modalEditarUsuario')).show();
 }
 
-async function guardarFilaUsuario(uid, tr) {
+async function guardarUsuarioDesdeModal() {
+    const uid = el("edit-user-uid").value;
+    const nuevoRol = el("edit-user-rol").value;
+    const nuevaOficina = el("edit-user-oficina").value;
+    const btn = el("btn-guardar-usuario-modal");
+
+    btn.disabled = true;
+    btn.innerText = "Guardando...";
+
     try {
-        const selRol = tr.querySelector(".sel-rol");
-        const selOf  = tr.querySelector(".sel-oficina");
-
-        const nuevoRol = selRol ? selRol.value : "agente";
-        const nuevaOfi = selOf  ? selOf.value  : "";
-
         await updateDoc(doc(db, "usuarios", uid), {
             rol: nuevoRol,
-            oficina: nuevaOfi
+            oficina: nuevaOficina
         });
 
-        alert("Usuario actualizado.");
-    } catch (error) {
-        console.error("Error al guardar usuario:", error);
-        alert("No se pudo guardar el usuario.");
+        // Actualizar cache local para reflejar cambio sin recargar todo
+        const uIndex = usuariosCache.findIndex(u => u.id === uid);
+        if (uIndex !== -1) {
+            usuariosCache[uIndex].rol = nuevoRol;
+            usuariosCache[uIndex].oficina = nuevaOficina;
+        }
+        
+        renderizarUsuarios();
+        bootstrap.Modal.getInstance(el('modalEditarUsuario')).hide();
+        alert("Usuario actualizado correctamente.");
+
+    } catch (e) {
+        console.error(e);
+        alert("Error al guardar cambios.");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Guardar Cambios";
     }
 }
 
 // --------------------------------------------------
-// 4) EVENTOS DEL FORMULARIO DE OFICINAS
+// 5) EVENTOS GENERALES
 // --------------------------------------------------
 function inicializarEventos() {
-    const formOficina = el("form-oficina");
-    const btnLimpiar  = el("btn-limpiar-oficina");
-    const btnRefUsr   = el("btn-refrescar-usuarios");
+    el("form-oficina").addEventListener("submit", guardarOficina);
+    el("btn-limpiar-oficina").addEventListener("click", () => {
+        el("form-oficina").reset();
+        el("oficina-id").value = "";
+    });
 
-    if (formOficina) {
-        formOficina.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            await guardarOficinaDesdeFormulario();
-        });
-    }
+    el("btn-buscar").addEventListener("click", buscarUsuario);
+    el("buscador-usuario").addEventListener("keyup", (e) => {
+        if (e.key === "Enter") buscarUsuario();
+    });
 
-    if (btnLimpiar) {
-        btnLimpiar.addEventListener("click", () => {
-            limpiarFormularioOficina();
-        });
-    }
-
-    if (btnRefUsr) {
-        btnRefUsr.addEventListener("click", async () => {
-            await cargarUsuarios();
-        });
-    }
-}
-
-async function guardarOficinaDesdeFormulario() {
-    const id    = el("oficina-id").value.trim();
-    const nombre = el("oficina-nombre").value.trim();
-    const usaEst = el("oficina-estacionalidad").checked;
-
-    if (!nombre) {
-        alert("Ingresá un nombre de oficina.");
-        return;
-    }
-
-    try {
-        if (id) {
-            // Update
-            await updateDoc(doc(db, "oficinas", id), {
-                nombre,
-                usaEstacionalidad: usaEst
-            });
-        } else {
-            // Create
-            await addDoc(collection(db, "oficinas"), {
-                nombre,
-                usaEstacionalidad: usaEst
-            });
-        }
-
-        alert("Oficina guardada.");
-        limpiarFormularioOficina();
-        await cargarOficinas();
-        await cargarUsuarios(); // por si querés asignar oficinas nuevas a usuarios
-
-    } catch (error) {
-        console.error("Error guardando oficina:", error);
-        alert("No se pudo guardar la oficina.");
-    }
-}
-
-function limpiarFormularioOficina() {
-    el("oficina-id").value = "";
-    el("oficina-nombre").value = "";
-    el("oficina-estacionalidad").checked = false;
+    el("btn-guardar-usuario-modal").addEventListener("click", guardarUsuarioDesdeModal);
 }

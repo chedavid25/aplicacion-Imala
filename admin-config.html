@@ -5,280 +5,226 @@
     <meta charset="utf-8" />
     <title>Administración | Imalá App</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta content="Panel de administración Imalá" name="description" />
-    <meta content="Imalá" name="author" />
     <link rel="shortcut icon" href="assets/images/favicon.ico">
 
-    <!-- Skote / Bootstrap CSS -->
     <link href="assets/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
     <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
     <link href="assets/css/app.min.css" rel="stylesheet" type="text/css" />
 
     <style>
-        .badge-role {
-            text-transform: uppercase;
-            font-size: 10px;
-        }
-        .table-sm td, .table-sm th {
-            padding: .35rem .5rem;
-        }
-        .pointer {
-            cursor: pointer;
-        }
+        .badge-role { text-transform: uppercase; font-size: 10px; }
+        .table-sm td, .table-sm th { padding: .5rem .5rem; }
+        .pointer { cursor: pointer; }
     </style>
 </head>
 
-<body data-sidebar="dark">
+<body>
 
-    <!-- Begin page -->
     <div id="layout-wrapper">
 
-        <!-- HEADER -->
         <header id="page-topbar">
             <div class="navbar-header">
                 <div class="d-flex">
                     <div class="navbar-brand-box">
                         <a href="index.html" class="logo logo-dark">
-                            <span class="logo-sm">
-                                <img src="assets/images/logo-sm.png" alt="" height="22">
-                            </span>
-                            <span class="logo-lg">
-                                <img src="assets/images/logo-dark.png" alt="" height="20">
-                            </span>
+                            <span class="logo-lg"><img src="assets/images/logo-imala.png" alt="" height="20"></span>
                         </a>
                         <a href="index.html" class="logo logo-light">
-                            <span class="logo-sm">
-                                <img src="assets/images/logo-sm.png" alt="" height="22">
-                            </span>
-                            <span class="logo-lg">
-                                <img src="assets/images/logo-light.png" alt="" height="20">
-                            </span>
+                            <span class="logo-lg"><img src="assets/images/logo-imala.png" alt="" height="20"></span>
                         </a>
                     </div>
-
-                    <button type="button" class="btn btn-sm px-3 font-size-16 d-lg-none header-item"
-                        data-bs-toggle="collapse" data-bs-target="#topnav-menu-content">
+                    <button type="button" class="btn btn-sm px-3 font-size-16 d-lg-none header-item" data-bs-toggle="collapse" data-bs-target="#topnav-menu-content">
                         <i class="fa fa-fw fa-bars"></i>
                     </button>
                 </div>
 
                 <div class="d-flex">
                     <div class="dropdown d-inline-block">
-                        <button type="button" class="btn header-item bg-soft-light border-start border-end"
-                            id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true"
-                            aria-expanded="false">
-                            <img class="rounded-circle header-profile-user" src="assets/images/users/avatar-1.jpg"
-                                alt="Header Avatar" id="header-avatar">
+                        <button type="button" class="btn header-item bg-soft-light border-start border-end" id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <img class="rounded-circle header-profile-user" src="assets/images/users/avatar-1.jpg" alt="Header Avatar" id="header-avatar">
                             <span class="d-none d-xl-inline-block ms-1 fw-medium" id="header-user-name">Agente</span>
                             <i class="mdi mdi-chevron-down d-none d-xl-inline-block"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
-                            <!-- items agregados por header-user.js -->
-                            <a class="dropdown-item" href="logout.html">
-                                <i class="mdi mdi-logout font-size-16 align-middle me-1"></i> Cerrar sesión
-                            </a>
+                            <a class="dropdown-item" href="logout.html"><i class="mdi mdi-logout font-size-16 align-middle me-1"></i> Cerrar sesión</a>
                         </div>
                     </div>
                 </div>
-
             </div>
         </header>
 
-        <!-- ========== Left Sidebar Start ========== -->
         <div class="vertical-menu">
             <div data-simplebar class="h-100">
                 <div id="sidebar-menu">
                     <ul class="metismenu list-unstyled" id="side-menu">
-                        <li class="menu-title" data-key="t-menu">Menú Principal</li>
-
-                        <li>
-                            <a href="index.html">
-                                <i data-feather="home"></i>
-                                <span data-key="t-dashboard">Planificador</span>
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="tracking.html">
-                                <i data-feather="target"></i>
-                                <span>Mi trackeo</span>
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="charts.html">
-                                <i data-feather="pie-chart"></i>
-                                <span>Gráficos de Gestión</span>
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="admin.html">
-                                <i data-feather="shield"></i>
-                                <span>Panel Admin</span>
-                            </a>
-                        </li>
-
-                        <li class="mm-active">
-                            <a href="admin-config.html">
-                                <i data-feather="settings"></i>
-                                <span>Admin. Oficinas / Usuarios</span>
-                            </a>
-                        </li>
+                        <li class="menu-title">Menú Principal</li>
+                        <li><a href="index.html"><i data-feather="home"></i><span>Planificador</span></a></li>
+                        <li><a href="tracking.html"><i data-feather="target"></i><span>Mi trackeo</span></a></li>
+                        <li><a href="charts.html"><i data-feather="pie-chart"></i><span>Gráficos de Gestión</span></a></li>
+                        <li><a href="admin.html"><i data-feather="shield"></i><span>Panel Admin</span></a></li>
+                        <li class="mm-active"><a href="admin-config.html"><i data-feather="settings"></i><span>Admin. Oficinas / Usuarios</span></a></li>
                     </ul>
                 </div>
             </div>
         </div>
-        <!-- Left Sidebar End -->
 
-        <!-- CONTENIDO -->
         <div class="main-content">
             <div class="page-content">
                 <div class="container-fluid">
 
-                    <!-- TÍTULO -->
                     <div class="row mb-3">
                         <div class="col-12 d-flex justify-content-between align-items-center">
                             <div>
-                                <h4 class="mb-1">Administración de Oficinas y Usuarios</h4>
-                                <p class="text-muted mb-0">
-                                    Solo usuarios con rol <span class="badge bg-danger badge-role">admin</span> pueden ver esta pantalla.
-                                </p>
+                                <h4 class="mb-1">Configuración del Sistema</h4>
+                                <p class="text-muted mb-0">Gestión de Oficinas y Permisos de Usuarios</p>
                             </div>
-                            <div>
-                                <a href="admin.html" class="btn btn-sm btn-outline-primary">
-                                    <i class="mdi mdi-arrow-left"></i> Volver al Panel Admin
-                                </a>
-                            </div>
+                            <a href="admin.html" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-arrow-left"></i> Volver al Reporte</a>
                         </div>
                     </div>
 
-                    <!-- OFICINAS -->
                     <div class="row">
                         <div class="col-lg-5">
                             <div class="card">
+                                <div class="card-header bg-transparent border-bottom">
+                                    <h5 class="card-title mb-0">🏢 Oficinas</h5>
+                                </div>
                                 <div class="card-body">
-                                    <h5 class="card-title mb-3">Oficinas</h5>
-                                    <p class="text-muted font-size-12">
-                                        Acá se crean y editan las oficinas.  
-                                        El nombre debe coincidir con el que usan los agentes en la planificación.
-                                    </p>
-
-                                    <form id="form-oficina" class="mb-3">
+                                    <form id="form-oficina" class="mb-4">
                                         <input type="hidden" id="oficina-id">
                                         <div class="mb-2">
-                                            <label class="form-label mb-0">Nombre de la oficina</label>
+                                            <label class="form-label small">Nombre de la Oficina</label>
                                             <input type="text" class="form-control form-control-sm" id="oficina-nombre" placeholder='Ej: "RE/MAX BIG"' required>
                                         </div>
                                         <div class="form-check form-switch mb-2">
                                             <input class="form-check-input" type="checkbox" id="oficina-estacionalidad">
-                                            <label class="form-check-label" for="oficina-estacionalidad">
-                                                Usa estacionalidad 17/23/25/35 en facturación
-                                            </label>
+                                            <label class="form-check-label small" for="oficina-estacionalidad">Aplicar Curva Estacional en Facturación</label>
                                         </div>
                                         <div class="d-flex gap-2">
-                                            <button type="submit" class="btn btn-sm btn-primary" id="btn-guardar-oficina">
-                                                Guardar oficina
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-light" id="btn-limpiar-oficina">
-                                                Limpiar
-                                            </button>
+                                            <button type="submit" class="btn btn-sm btn-primary w-100" id="btn-guardar-oficina">Guardar</button>
+                                            <button type="button" class="btn btn-sm btn-light" id="btn-limpiar-oficina">Cancelar</button>
                                         </div>
                                     </form>
 
-                                    <div class="table-responsive">
+                                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                                         <table class="table table-sm table-hover align-middle mb-0">
-                                            <thead class="table-light">
+                                            <thead class="table-light sticky-top">
                                                 <tr>
                                                     <th>Nombre</th>
-                                                    <th class="text-center">Estacionalidad</th>
-                                                    <th class="text-end">Acciones</th>
+                                                    <th class="text-center">Curva</th>
+                                                    <th class="text-end">Editar</th>
                                                 </tr>
                                             </thead>
-                                            <tbody id="tabla-oficinas-body">
-                                                <!-- filas dinámicas -->
-                                            </tbody>
+                                            <tbody id="tabla-oficinas-body"></tbody>
                                         </table>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- USUARIOS -->
                         <div class="col-lg-7">
                             <div class="card">
+                                <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                                    <h5 class="card-title mb-0">👥 Usuarios</h5>
+                                    <div id="loading-users" class="spinner-border spinner-border-sm text-primary d-none" role="status"></div>
+                                </div>
                                 <div class="card-body">
-                                    <h5 class="card-title mb-3">Usuarios</h5>
-                                    <p class="text-muted font-size-12">
-                                        Acá podés cambiar el rol de cada usuario y la oficina asociada.  
-                                        <span class="badge bg-danger badge-role">admin</span> ve todo.  
-                                        <span class="badge bg-info badge-role">broker</span> ve solo su oficina en el Panel Admin.  
-                                        <span class="badge bg-secondary badge-role">agente</span> no tiene acceso a admin.html.
-                                    </p>
-
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <div class="text-muted font-size-12">
-                                            Los cambios se guardan por fila, con el botón "Guardar".
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-refrescar-usuarios">
-                                            <i class="mdi mdi-refresh"></i> Recargar
-                                        </button>
+                                    <div class="input-group mb-3">
+                                        <span class="input-group-text"><i class="mdi mdi-magnify"></i></span>
+                                        <input type="text" class="form-control" id="buscador-usuario" placeholder="Buscar por email exacto o inicio del nombre...">
+                                        <button class="btn btn-primary" id="btn-buscar">Buscar</button>
                                     </div>
 
-                                    <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
-                                        <table class="table table-sm align-middle mb-0">
-                                            <thead class="table-light">
+                                    <div class="table-responsive" style="min-height: 300px; max-height: 500px; overflow-y: auto;">
+                                        <table class="table table-sm table-hover align-middle mb-0">
+                                            <thead class="table-light sticky-top">
                                                 <tr>
-                                                    <th>Nombre</th>
+                                                    <th>Usuario</th>
                                                     <th>Email</th>
                                                     <th>Rol</th>
                                                     <th>Oficina</th>
                                                     <th class="text-end">Acción</th>
                                                 </tr>
                                             </thead>
-                                            <tbody id="tabla-usuarios-body">
-                                                <!-- filas dinámicas -->
-                                            </tbody>
+                                            <tbody id="tabla-usuarios-body"></tbody>
                                         </table>
+                                        <div id="sin-resultados" class="text-center mt-4 d-none">
+                                            <p class="text-muted">No se encontraron usuarios.</p>
+                                        </div>
                                     </div>
-
                                 </div>
                             </div>
                         </div>
-                    </div> <!-- end row -->
+                    </div>
 
-                </div> <!-- container-fluid -->
-            </div> <!-- page-content -->
+                </div>
+            </div>
 
             <footer class="footer">
                 <div class="container-fluid">
                     <div class="row">
-                        <div class="col-sm-6">
-                            <script>document.write(new Date().getFullYear())</script> © Imalá.
-                        </div>
+                        <div class="col-sm-6"><script>document.write(new Date().getFullYear())</script> © Imalá.</div>
                     </div>
                 </div>
             </footer>
-        </div> <!-- main-content -->
+        </div>
 
-    </div> <!-- layout-wrapper -->
+    </div>
 
-    <!-- JAVASCRIPT -->
+    <div class="modal fade" id="modalEditarUsuario" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Permisos de Usuario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edit-user-uid">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" class="form-control bg-light" id="edit-user-nombre" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="text" class="form-control bg-light" id="edit-user-email" readonly>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-primary fw-bold">Rol</label>
+                            <select class="form-select" id="edit-user-rol">
+                                <option value="agente">Agente (Solo ve sus datos)</option>
+                                <option value="broker">Broker (Ve su oficina)</option>
+                                <option value="admin">Admin (Ve todo)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-primary fw-bold">Oficina Asignada</label>
+                            <select class="form-select" id="edit-user-oficina">
+                                <option value="">Sin asignar</option>
+                                </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btn-guardar-usuario-modal">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="assets/libs/jquery/jquery.min.js"></script>
     <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="assets/libs/metismenu/metisMenu.min.js"></script>
     <script src="assets/libs/simplebar/simplebar.min.js"></script>
     <script src="assets/libs/node-waves/waves.min.js"></script>
-
+    <script src="assets/libs/feather-icons/feather.min.js"></script>
     <script src="assets/js/app.js"></script>
 
-    <!-- Firebase + Header -->
     <script type="module" src="firebase-config.js"></script>
     <script type="module" src="header-user.js"></script>
-
-    <!-- Lógica propia de esta pantalla -->
     <script type="module" src="admin-config.js"></script>
 
 </body>
 </html>
-

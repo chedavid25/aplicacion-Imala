@@ -1,4 +1,4 @@
-// admin.js - Versión actualizada con Ventas Reales (Listing vs Búsqueda)
+// admin.js - Versión actualizada: Diseño Expandido + Default Oficina Modelo
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
@@ -11,7 +11,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const ADMIN_EMAIL = "contacto@imala.com.ar";
-const backgroundImageBase64 = ""; 
+const OFICINA_DEFAULT_DEMO = "A. Oficina Modelo"; // <--- NOMBRE EXACTO DE TU OFICINA MODELO
 
 let currentUserRole = null;
 let currentBrokerOffice = null;
@@ -23,31 +23,60 @@ let FACTORES_GLOBAL = [];
 let CONFIG_OFICINAS = {};
 let OFICINAS_NOMBRES = [];
 
-// --- Inicialización (Igual que antes) ---
+// --- Inicialización ---
 async function inicializarSistema() {
     const config = await ConfigService.obtenerConfiguracionCompleta();
     FACTORES_GLOBAL = config.factores;
     CONFIG_OFICINAS = {}; OFICINAS_NOMBRES = [];
+    
     config.oficinas.forEach(of => {
         OFICINAS_NOMBRES.push(of.nombre);
         CONFIG_OFICINAS[of.nombre] = of.usaEstacionalidad;
     });
+    
     OFICINAS_NOMBRES.sort();
     poblarFiltroOficinas();
+    poblarOficinasModal();
 }
 
+// --- CAMBIO AQUÍ: Lógica para seleccionar A. Oficina Modelo por defecto ---
 function poblarFiltroOficinas() {
     const sel = document.getElementById("filtro-oficina");
     if (!sel) return;
-    const valorActual = sel.value;
+    
+    // Guardamos si el usuario ya había seleccionado algo manualmente antes de un refresco interno
+    const valorPrevio = sel.value; 
+    
     sel.innerHTML = `<option value="Todas">Todas las oficinas</option>`;
+    
+    let existeModelo = false;
+    OFICINAS_NOMBRES.forEach(nombre => {
+        sel.innerHTML += `<option value="${nombre}">${nombre}</option>`;
+        if (nombre === OFICINA_DEFAULT_DEMO) existeModelo = true;
+    });
+
+    // LÓGICA DE PRIORIDAD:
+    // 1. Si es un Broker, esto se ignora (se fuerza su oficina más abajo).
+    // 2. Si es Admin:
+    //    - Si ya había elegido una oficina específica (navegando), la respetamos.
+    //    - Si estaba en "Todas" (o es la primera carga) y existe la Modelo, ponemos la Modelo.
+    if (valorPrevio && OFICINAS_NOMBRES.includes(valorPrevio) && valorPrevio !== "Todas") {
+        sel.value = valorPrevio;
+    } else if (existeModelo) {
+        sel.value = OFICINA_DEFAULT_DEMO;
+    }
+}
+
+function poblarOficinasModal() {
+    const sel = document.getElementById("edit-oficina");
+    if (!sel) return;
+    sel.innerHTML = "";
     OFICINAS_NOMBRES.forEach(nombre => {
         sel.innerHTML += `<option value="${nombre}">${nombre}</option>`;
     });
-    if (valorActual && OFICINAS_NOMBRES.includes(valorActual)) sel.value = valorActual;
 }
 
-// --- Auth (Igual que antes) ---
+// --- Auth ---
 onAuthStateChanged(auth, async (user) => {
     if (!user) { window.location.href = "login.html"; return; }
     try {
@@ -66,12 +95,19 @@ onAuthStateChanged(auth, async (user) => {
         if (rol === "admin") {
             currentUserRole = "admin";
             document.getElementById("filtro-anio").value = new Date().getFullYear();
+            
+            // Si poblarFiltroOficinas ya puso la "Oficina Modelo", cargarDatosCompletos respetará ese filtro visualmente
             cargarDatosCompletos();
+
         } else if (rol === "broker") {
             if (!oficina) { alert("Broker sin oficina."); window.location.href = "index.html"; return; }
             currentUserRole = "broker"; currentBrokerOffice = oficina;
+            
             const sel = document.getElementById("filtro-oficina");
-            if(sel) { sel.value = oficina; sel.disabled = true; }
+            if(sel) { 
+                sel.value = oficina; // El broker SIEMPRE ve su oficina, pisa cualquier default
+                sel.disabled = true; 
+            }
             document.getElementById("filtro-anio").value = new Date().getFullYear();
             cargarDatosCompletos();
         } else { window.location.href = "index.html"; }
@@ -79,7 +115,7 @@ onAuthStateChanged(auth, async (user) => {
     } catch (err) { console.error(err); }
 });
 
-// --- Carga de Datos (Igual que antes, filtrando por año) ---
+// --- Carga de Datos ---
 async function cargarDatosCompletos() {
     try {
         const anio = parseInt(document.getElementById("filtro-anio").value) || new Date().getFullYear();
@@ -115,7 +151,7 @@ if (el("btn-guardar-cambios")) el("btn-guardar-cambios").addEventListener("click
 if (el("btn-excel")) el("btn-excel").addEventListener("click", e => { e.preventDefault(); exportarExcel(); });
 if (el("btn-pdf")) el("btn-pdf").addEventListener("click", e => { e.preventDefault(); exportarPDF(); });
 
-// --- Modal Editar (Igual) ---
+// --- Modal Editar ---
 window.abrirModalEditar = function(uid) {
     const ag = todosLosDatos.find(a => a.uid === uid);
     if(!ag) return;
@@ -148,7 +184,7 @@ async function guardarCambiosAgente() {
 // --- Procesamiento ---
 function aplicarFiltrosYRenderizar() {
     const anio = el("filtro-anio").value;
-    let oficina = el("filtro-oficina").value;
+    let oficina = el("filtro-oficina").value; // Aquí toma el valor (que ahora por defecto será Oficina Modelo)
     const periodo = el("filtro-periodo").value;
     const orden = el("filtro-orden").value;
 
@@ -163,7 +199,11 @@ function aplicarFiltrosYRenderizar() {
     datosProcesadosGlobal.sort((a, b) => {
         if (orden === "pct_fact_desc") return b.pctFact - a.pctFact;
         if (orden === "real_fact_desc") return b.R_Fact - a.R_Fact;
-        // ... agregar otros si querés
+        if (orden === "pct_trans_desc") return b.pctVentas - a.pctVentas;
+        if (orden === "pct_capt_desc") return b.pctCapt - a.pctCapt;
+        if (orden === "pct_acm_desc") return b.pctAcm - a.pctAcm;
+        if (orden === "pct_pre_desc") return b.pctPre - a.pctPre;
+        if (orden === "obj_fact_desc") return b.O_Fact - a.O_Fact;
         return 0;
     });
 
@@ -222,7 +262,7 @@ function procesarAgentes(lista, periodo, anio) {
         
         const O_Ventas = O_Ventas_An * factorLineal;
         const O_Prop = O_Prop_An * factorLineal;
-        const O_Busq = O_Busq_An * factorLineal; // <-- Ahora tiene su propia lógica si querés, o es lineal
+        const O_Busq = O_Busq_An * factorLineal; 
         const O_Capt = O_Capt_An * factorLineal;
         const O_Acm = O_Acm_An * factorLineal;
         const O_Pre = O_Pre_An * factorLineal;
@@ -236,8 +276,8 @@ function procesarAgentes(lista, periodo, anio) {
                 const d = tr[`mes_${m}`];
                 if(d) {
                     R_Fact += (d.facturacion?.total || 0);
-                    R_Prop += (d.ventas_propio?.total || 0);   // <--- LEEMOS LO REAL
-                    R_Busq += (d.ventas_busqueda?.total || 0); // <--- LEEMOS LO REAL
+                    R_Prop += (d.ventas_propio?.total || 0);   
+                    R_Busq += (d.ventas_busqueda?.total || 0); 
                     R_Capt += (d.captaciones?.total || 0);
                     R_Acm += (d.acm?.total || 0);
                     R_Pre += (d.prelisting?.total || 0);
@@ -248,7 +288,7 @@ function procesarAgentes(lista, periodo, anio) {
             });
         }
 
-        // R_Ventas Total Real es la suma de Propio + Búsqueda (ingresado manualmente por el agente)
+        // R_Ventas Total Real es la suma de Propio + Búsqueda
         const R_Ventas = R_Prop + R_Busq;
 
         const pct = (r, o) => o > 0 ? (r / o) * 100 : 0;
@@ -258,7 +298,7 @@ function procesarAgentes(lista, periodo, anio) {
             O_Fact, R_Fact, pctFact: pct(R_Fact, O_Fact),
             O_Ventas, R_Ventas, pctVentas: pct(R_Ventas, O_Ventas),
             O_Prop, R_Prop, pctProp: pct(R_Prop, O_Prop),
-            O_Busq, R_Busq, pctBusq: pct(R_Busq, O_Busq), // Ahora esto es efectividad real sobre objetivo búsqueda
+            O_Busq, R_Busq, pctBusq: pct(R_Busq, O_Busq),
             O_Capt, R_Capt, pctCapt: pct(R_Capt, O_Capt),
             O_Acm, R_Acm, pctAcm: pct(R_Acm, O_Acm),
             O_Pre, R_Pre, pctPre: pct(R_Pre, O_Pre),
@@ -269,7 +309,6 @@ function procesarAgentes(lista, periodo, anio) {
 
 // --- Renderizado (KPIs, Gráficos, Tabla) ---
 function renderizarKPIs(lista) {
-    // Sumar totales
     let tFact=0, tTrans=0, tCapt=0, tAcm=0, tPre=0;
     let rFact=0, rTrans=0, rCapt=0, rAcm=0, rPre=0;
     let tCara=0, tRes=0, tPreBuy=0;
@@ -397,32 +436,49 @@ function renderizarTabla(lista) {
     if (!tbody) return;
     tbody.innerHTML = "";
     
+    // Formateadores auxiliares
     const fmtM = n => "$" + Math.round(n).toLocaleString();
     const fmtN = n => n.toFixed(1);
     const fmtP = n => n.toFixed(0) + "%";
-    const color = p => p>=100 ? "text-success" : (p>=50 ? "text-warning" : "text-danger");
+    const color = p => p >= 100 ? "text-success" : (p >= 50 ? "text-warning" : "text-danger");
 
     lista.forEach(ag => {
         tbody.innerHTML += `
             <tr class="text-center data-cell">
-                <td class="sticky-col text-start"><h6 class="mb-0 text-primary">${ag.nombreAgente}</h6><small class="text-muted">${ag.oficina}</small></td>
+                <td class="sticky-col text-start">
+                    <h6 class="mb-0 text-primary">${ag.nombreAgente}</h6>
+                    <small class="text-muted">${ag.oficina}</small>
+                </td>
                 
-                <td class="bg-soft-success fw-bold text-dark">${fmtM(ag.O_Fact)} | ${fmtM(ag.R_Fact)} | <span class="${color(ag.pctFact)}">${fmtP(ag.pctFact)}</span></td>
+                <td class="bg-soft-success fw-bold text-dark">
+                    ${fmtM(ag.O_Fact)} | ${fmtM(ag.R_Fact)} | <span class="${color(ag.pctFact)}">${fmtP(ag.pctFact)}</span>
+                </td>
                 
                 <td>${fmtN(ag.O_Ventas)} | <strong>${fmtN(ag.R_Ventas)}</strong> | <span class="${color(ag.pctVentas)}">${fmtP(ag.pctVentas)}</span></td>
-                
                 <td>${fmtN(ag.O_Prop)} | ${fmtN(ag.R_Prop)} | <small>${fmtP(ag.pctProp)}</small></td>
                 <td>${fmtN(ag.O_Busq)} | ${fmtN(ag.R_Busq)} | <small>${fmtP(ag.pctBusq)}</small></td>
                 
-                <td>${fmtN(ag.O_Capt)} | <strong>${Math.round(ag.R_Capt)}</strong> | <span class="badge badge-soft-info">${fmtP(ag.pctCapt)}</span></td>
+                <td class="bg-soft-primary">${fmtN(ag.O_Capt)}</td>
+                <td class="bg-soft-primary fw-bold text-dark">${Math.round(ag.R_Capt)}</td>
+                <td class="bg-soft-primary"><span class="badge ${ag.pctCapt >= 100 ? 'bg-success' : 'bg-secondary'}">${fmtP(ag.pctCapt)}</span></td>
                 
-                <td>${fmtN(ag.O_Acm)} | <strong>${Math.round(ag.R_Acm)}</strong></td>
-                <td>${fmtN(ag.O_Pre)} | <strong>${Math.round(ag.R_Pre)}</strong></td>
+                <td>${fmtN(ag.O_Acm)}</td>
+                <td class="fw-bold">${Math.round(ag.R_Acm)}</td>
+                <td><small class="${color(ag.pctAcm)}">${fmtP(ag.pctAcm)}</small></td>
+
+                <td>${fmtN(ag.O_Pre)}</td>
+                <td class="fw-bold">${Math.round(ag.R_Pre)}</td>
+                <td><small class="${color(ag.pctPre)}">${fmtP(ag.pctPre)}</small></td>
                 
                 <td class="bg-light fw-bold">${Math.round(ag.R_Cara)}</td>
-                <td class="bg-light fw-bold">${Math.round(ag.R_Res)}</td>
+                <td class="bg-light fw-bold text-info">${Math.round(ag.R_PreBuy)}</td>
+                <td class="bg-light fw-bold text-warning">${Math.round(ag.R_Res)}</td>
                 
-                <td class="sticky-col-right"><button class="btn btn-sm btn-primary" onclick="abrirModalEditar('${ag.uid}')"><i class="mdi mdi-pencil"></i></button></td>
+                <td class="sticky-col-right">
+                    <button class="btn btn-sm btn-primary" onclick="abrirModalEditar('${ag.uid}')">
+                        <i class="mdi mdi-pencil"></i>
+                    </button>
+                </td>
             </tr>`;
     });
 }
@@ -464,8 +520,8 @@ function exportarExcel() {
         ag.nombreAgente, ag.oficina,
         ag.O_Fact, ag.R_Fact, ag.pctFact/100,
         ag.O_Ventas, ag.R_Ventas, ag.pctVentas/100,
-        ag.O_Prop, ag.R_Prop, ag.pctProp/100, // Added Propio
-        ag.O_Busq, ag.R_Busq, ag.pctBusq/100, // Added Busqueda
+        ag.O_Prop, ag.R_Prop, ag.pctProp/100, 
+        ag.O_Busq, ag.R_Busq, ag.pctBusq/100, 
         ag.O_Capt, ag.R_Capt, ag.pctCapt/100
     ]);
     const ws = XLSX.utils.aoa_to_sheet([["Agente","Oficina","Obj Fact","Real Fact","% Fact","Obj Tot","Real Tot","% Tot","Obj Prop","Real Prop","% Prop","Obj Busq","Real Busq","% Busq","Obj Capt","Real Capt","% Capt"], ...data]);

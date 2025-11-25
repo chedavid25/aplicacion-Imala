@@ -1,4 +1,4 @@
-// charts.js - VERSIÓN FINAL INTEGRADA
+// charts.js - VERSIÓN FINAL: Estacionalidad SOLO en Facturación
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
@@ -11,6 +11,8 @@ let trackingData = null;
 let charts = {};
 
 // CONFIG ESTACIONAL
+// Si tu oficina está aquí con 'false', TODO será lineal (incluida facturación).
+// Si NO está aquí, o está con 'true', Facturación será estacional y el resto lineal.
 const CONFIG_OFICINAS = {
   "RE/MAX BIG": true, 
   "RE/MAX FORUM": true, 
@@ -19,11 +21,12 @@ const CONFIG_OFICINAS = {
   "CROAR PROPIEDADES": false
 };
 
+// Factores: Q1 17%, Q2 23%, Q3 25%, Q4 35%
 const FACTORES_ESTACIONALES = [
-  0.17/3, 0.17/3, 0.17/3,
-  0.23/3, 0.23/3, 0.23/3,
-  0.25/3, 0.25/3, 0.25/3,
-  0.35/3, 0.35/3, 0.35/3
+  0.17/3, 0.17/3, 0.17/3, // Ene, Feb, Mar
+  0.23/3, 0.23/3, 0.23/3, // Abr, May, Jun
+  0.25/3, 0.25/3, 0.25/3, // Jul, Ago, Sep
+  0.35/3, 0.35/3, 0.35/3  // Oct, Nov, Dic
 ];
 
 // ========================================
@@ -115,7 +118,6 @@ function obtenerMesesPeriodo(periodo) {
   if (periodo === "S2") return [6,7,8,9,10,11];
   if (periodo === "mes_actual") return [mesActual];
   
-  // Meses individuales
   if (periodo.startsWith("mes_")) {
     const numMes = parseInt(periodo.split("_")[1]);
     return [numMes];
@@ -125,7 +127,7 @@ function obtenerMesesPeriodo(periodo) {
 }
 
 // ========================================
-// RENDERIZAR KPIs CON COLORES DINÁMICOS
+// RENDERIZAR KPIs (Corregido: Estacionalidad solo en Facturación)
 // ========================================
 function renderizarKPIs(meses) {
   let sumFact = 0, sumVentas = 0, sumPropias = 0, sumBusq = 0;
@@ -165,22 +167,28 @@ function renderizarKPIs(meses) {
   const acmNec = acm > 0 ? captNec / acm : 0;
   const preNec = pre > 0 ? acmNec / pre : 0;
 
-  const esEstacional = CONFIG_OFICINAS[planAnual.oficina];
-  let factorPeriodo = 1;
+  // Lógica de Factores
+  const configOficina = CONFIG_OFICINAS[planAnual.oficina];
+  const esEstacional = configOficina !== false; 
 
+  let factorFacturacion = 0;
+  let factorOtros = meses.length / 12; // Siempre lineal para el resto
+
+  // Cálculo del factor para facturación
   if (esEstacional) {
-    factorPeriodo = meses.reduce((sum, m) => sum + FACTORES_ESTACIONALES[m], 0);
+    factorFacturacion = meses.reduce((sum, m) => sum + FACTORES_ESTACIONALES[m], 0);
   } else {
-    factorPeriodo = meses.length / 12;
+    factorFacturacion = meses.length / 12;
   }
 
-  const objPeriodo = objAnual * factorPeriodo;
-  const ventasPeriodo = ventasNec * factorPeriodo;
-  const propiasPeriodo = ventasPropNec * factorPeriodo;
-  const busqPeriodo = ventasBusqNec * factorPeriodo;
-  const captPeriodo = captNec * factorPeriodo;
-  const acmPeriodo = acmNec * factorPeriodo;
-  const prePeriodo = preNec * factorPeriodo;
+  // Aplicación de factores
+  const objPeriodo = objAnual * factorFacturacion; // Solo Facturación usa factor estacional
+  const ventasPeriodo = ventasNec * factorOtros;   // Los demás usan factor lineal
+  const propiasPeriodo = ventasPropNec * factorOtros;
+  const busqPeriodo = ventasBusqNec * factorOtros;
+  const captPeriodo = captNec * factorOtros;
+  const acmPeriodo = acmNec * factorOtros;
+  const prePeriodo = preNec * factorOtros;
 
   const fmt = (v) => new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', maximumFractionDigits:0}).format(v);
   const pct = (r, o) => o > 0 ? Math.round((r/o)*100) : 0;
@@ -216,7 +224,6 @@ function renderizarKPIs(meses) {
   document.getElementById("kpi-reservas").textContent = Math.round(sumRes);
   document.getElementById("kpi-prebuy").textContent = Math.round(sumPreBuy);
 
-  // Aplicar colores dinámicos
   aplicarColorDinamico("card-facturacion", "badge-facturacion", pct(sumFact, objPeriodo));
   aplicarColorDinamico("card-ventas", "badge-ventas", pct(sumVentas, ventasPeriodo));
   aplicarColorDinamico("card-propias", "badge-propias", pct(sumPropias, propiasPeriodo));
@@ -233,11 +240,9 @@ function aplicarColorDinamico(cardId, badgeId, porcentaje) {
   const card = document.getElementById(cardId);
   const badge = document.getElementById(badgeId);
   
-  // Limpiar clases anteriores
   card.classList.remove('border-success-dynamic', 'border-warning-dynamic', 'border-danger-dynamic');
   badge.className = 'badge badge-cumplimiento';
   
-  // ✅ Aplicar según porcentaje: Rojo < 50%, Amarillo 50-99%, Verde >= 100%
   if (porcentaje >= 100) {
     card.classList.add('border-success-dynamic');
     badge.classList.add('bg-success');
@@ -251,18 +256,27 @@ function aplicarColorDinamico(cardId, badgeId, porcentaje) {
 }
 
 // ========================================
-// VELOCÍMETRO - MEJORA SEGÚN % ACUMULADO REAL/SUPUESTO
+// VELOCÍMETRO (Solo Facturación - con chequeo de estacionalidad)
 // ========================================
 function renderizarVelocimetro(meses) {
   const hoy = new Date();
   const mesActual = hoy.getMonth();
   const totalObjetivo = planAnual.objetivoAnual || 1;
 
-  // Estacionalidad esperada al mes actual
+  // Chequeo de estacionalidad
+  const configOficina = CONFIG_OFICINAS[planAnual.oficina];
+  const esEstacional = configOficina !== false; 
+
+  // Estacionalidad esperada acumulada al mes actual
   let porcAcumuladoEsperado = 0;
   for (let i = 0; i <= mesActual; i++) {
-    porcAcumuladoEsperado += FACTORES_ESTACIONALES[i] || (1 / 12);
+    if (esEstacional) {
+      porcAcumuladoEsperado += FACTORES_ESTACIONALES[i];
+    } else {
+      porcAcumuladoEsperado += (1 / 12);
+    }
   }
+  
   let objetivoEsperado = totalObjetivo * porcAcumuladoEsperado;
 
   // Avance real acumulado
@@ -275,7 +289,6 @@ function renderizarVelocimetro(meses) {
   let porcentaje = objetivoEsperado > 0 ? (avanceReal / objetivoEsperado) * 100 : 0;
   porcentaje = Math.round(porcentaje);
 
-  // Color/mensaje
   let color, mensaje;
   if (porcentaje >= 100) {
     color = "#34c38f";
@@ -288,7 +301,6 @@ function renderizarVelocimetro(meses) {
     mensaje = "Precaución: por debajo del ritmo necesario.";
   }
 
-  // ApexCharts
   if (charts.velocimetro) charts.velocimetro.destroy();
   charts.velocimetro = new ApexCharts(document.querySelector("#chart-velocimetro"), {
     chart: { height: 260, type: "radialBar", sparkline: { enabled: true } },
@@ -310,7 +322,6 @@ function renderizarVelocimetro(meses) {
   });
   charts.velocimetro.render();
 
-  // Badge fijo UI
   let badge = document.getElementById("badge-proyeccion");
   if (badge) {
     badge.style.position = "absolute";
@@ -327,7 +338,7 @@ function renderizarVelocimetro(meses) {
 }
 
 // ========================================
-// MES ACTUAL VS PROMEDIO - MEJORA (PORCENTAJE PROPIO Y TOOLTIP)
+// MES ACTUAL VS PROMEDIO
 // ========================================
 function renderizarComparacionMes(meses) {
   const labels = ["Facturación", "Transacciones", "Captaciones", "Pre-Listings"];
@@ -345,7 +356,6 @@ function renderizarComparacionMes(meses) {
         else if (k === "captaciones") valorMes = mesActual === m ? mes.captaciones?.total || 0 : valorMes;
         else if (k === "prelisting") valorMes = mesActual === m ? mes.prelisting?.total || 0 : valorMes;
 
-        // Suma para promedio
         if (k === "facturacion") valoresArray.push(mes.facturacion?.total || 0);
         else if (k === "transacciones") valoresArray.push((mes.ventas_propio?.total || 0) + (mes.ventas_busqueda?.total || 0));
         else if (k === "captaciones") valoresArray.push(mes.captaciones?.total || 0);
@@ -388,14 +398,17 @@ function renderizarComparacionMes(meses) {
 }
 
 // ========================================
-// LÍNEA FACTURACIÓN (CON ESTACIONALIDAD)
+// LÍNEA FACTURACIÓN (Usa Estacionalidad si aplica)
 // ========================================
 function renderizarLineaTiempo(meses) {
   const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const real = [], obj = [];
 
   const objAnual = planAnual.objetivoAnual || 0;
-  const esEstacional = CONFIG_OFICINAS[planAnual.oficina];
+  
+  // LOGICA: Si NO es explícitamente false, asume estacional.
+  const configOficina = CONFIG_OFICINAS[planAnual.oficina];
+  const esEstacional = configOficina !== false;
 
   for (let i = 0; i < 12; i++) {
     const mes = trackingData[`mes_${i}`];
@@ -437,7 +450,7 @@ function renderizarLineaTiempo(meses) {
 }
 
 // ========================================
-// LÍNEA CAPTACIONES
+// LÍNEA CAPTACIONES (SIEMPRE LINEAL / 12)
 // ========================================
 function renderizarLineaCaptaciones(meses) {
   const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -453,17 +466,13 @@ function renderizarLineaCaptaciones(meses) {
   const ventasPropias = ventasNec * prop;
   const captNec = capt > 0 ? ventasPropias / capt : 0;
 
-  const esEstacional = CONFIG_OFICINAS[planAnual.oficina];
+  // IMPORTANTE: Aquí NO usamos estacionalidad. Siempre dividimos por 12.
+  const objetivoMensual = captNec / 12;
 
   for (let i = 0; i < 12; i++) {
     const mes = trackingData[`mes_${i}`];
     real.push(mes?.captaciones?.total || 0);
-    
-    if (esEstacional) {
-      obj.push(captNec * FACTORES_ESTACIONALES[i]);
-    } else {
-      obj.push(captNec / 12);
-    }
+    obj.push(objetivoMensual); // Siempre lineal
   }
 
   const options = {
@@ -595,7 +604,7 @@ function colorearConversion(id, real, plan) {
 }
 
 // ========================================
-// CARA A CARA (META: 10 por SEMANA)
+// CARA A CARA
 // ========================================
 function renderizarCaraCara(meses) {
   let totalRealizado = 0;
@@ -605,7 +614,6 @@ function renderizarCaraCara(meses) {
     if (mes) totalRealizado += mes.caracara?.total || 0;
   });
 
-  // META: 10 reuniones por SEMANA
   const semanasDelPeriodo = calcularSemanasPeriodo(meses);
   const metaPeriodo = 10 * semanasDelPeriodo;
   const faltante = metaPeriodo > totalRealizado ? metaPeriodo - totalRealizado : 0;
@@ -659,7 +667,6 @@ function renderizarCaraCara(meses) {
   charts.caracara.render();
 }
 
-// ✅ Calcular semanas del período
 function calcularSemanasPeriodo(meses) {
   const diasPorMes = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   const anio = parseInt(document.getElementById("filtro-anio").value) || new Date().getFullYear();

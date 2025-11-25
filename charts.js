@@ -1,418 +1,734 @@
-// charts.js - VERSIÓN FINAL: FILTRO DE AÑO Y CORRECCIÓN DE MESES
+// charts.js - VERSIÓN FINAL INTEGRADA
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { app } from "./firebase-config.js";
 
 const auth = getAuth(app);
 const db = getFirestore(app);
-
 let planAnual = null;
 let trackingData = null;
-let charts = {}; 
+let charts = {};
 
 // CONFIG ESTACIONAL
 const CONFIG_OFICINAS = {
-    "RE/MAX BIG": true, "RE/MAX FORUM": true, "RE/MAX FLOR": true, "RE/MAX ACUERDO": true, "CROAR PROPIEDADES": false
+  "RE/MAX BIG": true, 
+  "RE/MAX FORUM": true, 
+  "RE/MAX FLOR": true, 
+  "RE/MAX ACUERDO": true, 
+  "CROAR PROPIEDADES": false
 };
-const FACTORES_ESTACIONALES = [ 
-    0.17/3, 0.17/3, 0.17/3, 
-    0.23/3, 0.23/3, 0.23/3, 
-    0.25/3, 0.25/3, 0.25/3, 
-    0.35/3, 0.35/3, 0.35/3
+
+const FACTORES_ESTACIONALES = [
+  0.17/3, 0.17/3, 0.17/3,
+  0.23/3, 0.23/3, 0.23/3,
+  0.25/3, 0.25/3, 0.25/3,
+  0.35/3, 0.35/3, 0.35/3
 ];
 
-// 1. INICIO
+// ========================================
+// INICIO
+// ========================================
 onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        // Al iniciar, leemos el año por defecto y cargamos datos
-        await cargarTodo(user.uid);
-    } else {
-        window.location.href = "login.html";
-    }
+  if (user) {
+    await cargarTodo(user.uid);
+  } else {
+    window.location.href = "login.html";
+  }
 });
 
-// Función para manejar el cambio de filtro (Año o Período)
-function manejarCambioFiltro() {
-    const uid = auth.currentUser ? auth.currentUser.uid : null;
-    if (uid) {
-        // Siempre recargamos la data de Firebase al cambiar el filtro de año
-        cargarTodo(uid); 
-    }
-}
-
-// AÑADIR ESCUCHA AL CAMBIO DE FILTROS
-document.getElementById("filtro-periodo").addEventListener("change", actualizarDashboard);
-document.getElementById("filtro-anio").addEventListener("change", manejarCambioFiltro);
-
-
-// --- FUNCIÓN DE FETCH DE DATOS (MODIFICADA para usar el filtro de año) ---
+// ========================================
+// CARGAR DATOS
+// ========================================
 async function cargarTodo(uid) {
-    try {
-        // Lee el año seleccionado por el usuario desde el nuevo filtro
-        const year = document.getElementById("filtro-anio").value; 
-        
-        // 1. Fetch Plan Individual y Tracking Individual
-        const docPlan = await getDoc(doc(db, "planificaciones", `${uid}_${year}`));
+  const anio = parseInt(document.getElementById("filtro-anio").value) || new Date().getFullYear();
+  
+  try {
+    const docPlan = await getDoc(doc(db, "planificaciones", `${uid}_${anio}`));
+    const docTrack = await getDoc(doc(db, "tracking", `${uid}_${anio}`));
 
-        if (docPlan.exists()) planAnual = docPlan.data();
+    planAnual = docPlan.exists() ? docPlan.data() : null;
+    trackingData = docTrack.exists() ? docTrack.data() : null;
 
-        // Consulta de Tracking usando el año seleccionado
-        const docTrack = await getDoc(doc(db, "tracking", `${uid}_${year}`)); 
-        if (docTrack.exists()) trackingData = docTrack.data();
-        else trackingData = null; // Limpiar datos si no existe el tracking para ese año
-
-        // Llama a la función de renderizado una vez que los datos para el año están cargados.
-        // Aquí no se llama a manejarCambioFiltro para evitar bucles.
-        actualizarDashboard();
-
-    } catch (error) {
-        console.error("Error cargando datos:", error);
+    if (!planAnual) {
+      alert("No hay planificación para este año. Creala en 'Mi Planificador'.");
+      return;
     }
+
+    if (!trackingData) {
+      alert("No hay datos de tracking para este año. Cargá tus primeros resultados en 'Tracking Mensual'.");
+      return;
+    }
+
+    renderizarTodo();
+  } catch (error) {
+    console.error("Error cargando datos:", error);
+    alert("Error al cargar datos: " + error.message);
+  }
 }
 
-// --- FUNCIÓN DE RENDERIZADO PRINCIPAL (MODIFICADA para funcionar solo con los datos cargados) ---
-function actualizarDashboard() {
-    if (!planAnual) return;
-    
-    // El periodo debe ser recalculado basado en el filtro de periodo
-    const periodo = document.getElementById("filtro-periodo").value;
-    const datos = procesarDatos(periodo); // Calcula los KPI y métricas solo con la data de trackingData
+// ========================================
+// FILTROS
+// ========================================
+document.getElementById("filtro-anio").addEventListener("change", () => {
+  const user = auth.currentUser;
+  if (user) cargarTodo(user.uid);
+});
 
-    // A. KPIs
-    renderKPI("facturacion", datos.O_Fact, datos.R_Fact, true);
-    renderKPI("ventas", datos.O_Ventas, datos.R_Ventas);
-    renderKPI("propias", datos.O_Prop, datos.R_Prop);
-    renderKPI("busquedas", datos.O_Busq, datos.R_Busq);
-    renderKPI("capt", datos.O_Capt, datos.R_Capt);
-    renderKPI("acm", datos.O_Acm, datos.R_Acm);
-    renderKPI("prelist", datos.O_Pre, datos.R_Pre);
-    
-    document.getElementById("kpi-reservas").innerText = Math.round(datos.R_Res);
-    document.getElementById("kpi-prebuy").innerText = Math.round(datos.R_PreBuy);
+document.getElementById("filtro-periodo").addEventListener("change", () => {
+  renderizarTodo();
+});
 
-    // B. GRÁFICOS DE AGUJA
-    dibujarGauge("gauge-fact", datos.R_Fact, datos.O_Fact);
-    dibujarGauge("gauge-ventas", datos.R_Ventas, datos.O_Ventas);
-    dibujarGauge("gauge-capt", datos.R_Capt, datos.O_Capt);
-    dibujarGauge("gauge-acm", datos.R_Acm, datos.O_Acm);
-    dibujarGauge("gauge-pre", datos.R_Pre, datos.O_Pre);
+// ========================================
+// RENDERIZAR TODO
+// ========================================
+function renderizarTodo() {
+  if (!planAnual || !trackingData) return;
 
-    // C. GRÁFICOS DE LÍNEAS
-    dibujarLineaTiempo();
-    dibujarLineaCaptaciones();
+  const periodo = document.getElementById("filtro-periodo").value;
+  const meses = obtenerMesesPeriodo(periodo);
 
-    // D. OTROS
-    dibujarEmbudo(datos);
-    dibujarCaraCara(datos);
-    dibujarMix(datos);
+  renderizarKPIs(meses);
+  renderizarVelocimetro(meses);
+  renderizarComparacionMes(meses);
+  renderizarLineaTiempo(meses);
+  renderizarLineaCaptaciones(meses);
+  renderizarEmbudoConversion(meses);
+  renderizarCaraCara(meses);
+  renderizarMixVentas(meses);
 }
 
+// ========================================
+// OBTENER MESES DEL PERÍODO
+// ========================================
+function obtenerMesesPeriodo(periodo) {
+  const hoy = new Date();
+  const mesActual = hoy.getMonth();
 
-// --- FUNCIÓN DE CÁLCULO PRINCIPAL (Añadida corrección para meses individuales 'Mxx') ---
-function procesarDatos(periodo) {
-    let meses = [];
-    const hoy = new Date();
-    const mesActual = hoy.getMonth(); 
+  if (periodo === "anual") return [0,1,2,3,4,5,6,7,8,9,10,11];
+  if (periodo === "acumulado") return Array.from({length: mesActual+1}, (_,i) => i);
+  if (periodo === "Q1") return [0,1,2];
+  if (periodo === "Q2") return [3,4,5];
+  if (periodo === "Q3") return [6,7,8];
+  if (periodo === "Q4") return [9,10,11];
+  if (periodo === "S1") return [0,1,2,3,4,5];
+  if (periodo === "S2") return [6,7,8,9,10,11];
+  if (periodo === "mes_actual") return [mesActual];
+  
+  // Meses individuales
+  if (periodo.startsWith("mes_")) {
+    const numMes = parseInt(periodo.split("_")[1]);
+    return [numMes];
+  }
+  
+  return [0,1,2,3,4,5,6,7,8,9,10,11];
+}
 
-    if (periodo === "anual") meses = [0,1,2,3,4,5,6,7,8,9,10,11];
-    else if (periodo === "acumulado") { for(let i=0; i<=mesActual; i++) meses.push(i); }
-    else if (periodo.startsWith("S")) meses = periodo==="S1" ? [0,1,2,3,4,5] : [6,7,8,9,10,11];
-    else if (periodo.startsWith("Q")) {
-        if(periodo==="Q1") meses=[0,1,2]; if(periodo==="Q2") meses=[3,4,5];
-        if(periodo==="Q3") meses=[6,7,8]; if(periodo==="Q4") meses=[9,10,11];
+// ========================================
+// RENDERIZAR KPIs CON COLORES DINÁMICOS
+// ========================================
+function renderizarKPIs(meses) {
+  let sumFact = 0, sumVentas = 0, sumPropias = 0, sumBusq = 0;
+  let sumCapt = 0, sumAcm = 0, sumPre = 0, sumRes = 0, sumPreBuy = 0;
+
+  meses.forEach(m => {
+    const mes = trackingData[`mes_${m}`];
+    if (mes) {
+      sumFact += mes.facturacion?.total || 0;
+      sumPropias += mes.ventas_propio?.total || 0;
+      sumBusq += mes.ventas_busqueda?.total || 0;
+      sumCapt += mes.captaciones?.total || 0;
+      sumAcm += mes.acm?.total || 0;
+      sumPre += mes.prelisting?.total || 0;
+      sumRes += mes.reservas?.total || 0;
+      sumPreBuy += mes.prebuy?.total || 0;
     }
-    else if (periodo === "mes_actual") meses = [mesActual];
-    // ✅ CORRECCIÓN FINAL: Meses individuales usan índices directos 0-11
-    else {
-        const mesIndex = parseInt(periodo);
-        if (!isNaN(mesIndex) && mesIndex >= 0 && mesIndex <= 11) {
-            meses.push(mesIndex);
+  });
+
+  sumVentas = sumPropias + sumBusq;
+
+  const objAnual = planAnual.objetivoAnual || 0;
+  const ticket = planAnual.ticketPromedio || 0;
+  const comProm = ticket * 0.03;
+  const ventasNec = comProm > 0 ? objAnual / comProm : 0;
+
+  const ef = planAnual.efectividades || {};
+  const pre = (ef.preListAcm || 0) / 100;
+  const acm = (ef.acmCapt || 0) / 100;
+  const capt = (ef.captVenta || 0) / 100;
+  const prop = (ef.listingPropio || 0) / 100;
+  const busq = (ef.busquedas || 0) / 100;
+
+  const ventasPropNec = ventasNec * prop;
+  const ventasBusqNec = ventasNec * busq;
+  const captNec = capt > 0 ? ventasPropNec / capt : 0;
+  const acmNec = acm > 0 ? captNec / acm : 0;
+  const preNec = pre > 0 ? acmNec / pre : 0;
+
+  const esEstacional = CONFIG_OFICINAS[planAnual.oficina];
+  let factorPeriodo = 1;
+
+  if (esEstacional) {
+    factorPeriodo = meses.reduce((sum, m) => sum + FACTORES_ESTACIONALES[m], 0);
+  } else {
+    factorPeriodo = meses.length / 12;
+  }
+
+  const objPeriodo = objAnual * factorPeriodo;
+  const ventasPeriodo = ventasNec * factorPeriodo;
+  const propiasPeriodo = ventasPropNec * factorPeriodo;
+  const busqPeriodo = ventasBusqNec * factorPeriodo;
+  const captPeriodo = captNec * factorPeriodo;
+  const acmPeriodo = acmNec * factorPeriodo;
+  const prePeriodo = preNec * factorPeriodo;
+
+  const fmt = (v) => new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', maximumFractionDigits:0}).format(v);
+  const pct = (r, o) => o > 0 ? Math.round((r/o)*100) : 0;
+
+  document.getElementById("kpi-facturacion-real").textContent = fmt(sumFact);
+  document.getElementById("kpi-facturacion-obj").textContent = fmt(objPeriodo);
+  document.getElementById("badge-facturacion").textContent = pct(sumFact, objPeriodo) + "%";
+
+  document.getElementById("kpi-ventas-real").textContent = Math.round(sumVentas);
+  document.getElementById("kpi-ventas-obj").textContent = Math.round(ventasPeriodo);
+  document.getElementById("badge-ventas").textContent = pct(sumVentas, ventasPeriodo) + "%";
+
+  document.getElementById("kpi-propias-real").textContent = Math.round(sumPropias);
+  document.getElementById("kpi-propias-obj").textContent = Math.round(propiasPeriodo);
+  document.getElementById("badge-propias").textContent = pct(sumPropias, propiasPeriodo) + "%";
+
+  document.getElementById("kpi-busquedas-real").textContent = Math.round(sumBusq);
+  document.getElementById("kpi-busquedas-obj").textContent = Math.round(busqPeriodo);
+  document.getElementById("badge-busquedas").textContent = pct(sumBusq, busqPeriodo) + "%";
+
+  document.getElementById("kpi-capt-real").textContent = Math.round(sumCapt);
+  document.getElementById("kpi-capt-obj").textContent = Math.round(captPeriodo);
+  document.getElementById("badge-capt").textContent = pct(sumCapt, captPeriodo) + "%";
+
+  document.getElementById("kpi-acm-real").textContent = Math.round(sumAcm);
+  document.getElementById("kpi-acm-obj").textContent = Math.round(acmPeriodo);
+  document.getElementById("badge-acm").textContent = pct(sumAcm, acmPeriodo) + "%";
+
+  document.getElementById("kpi-prelist-real").textContent = Math.round(sumPre);
+  document.getElementById("kpi-prelist-obj").textContent = Math.round(prePeriodo);
+  document.getElementById("badge-prelist").textContent = pct(sumPre, prePeriodo) + "%";
+
+  document.getElementById("kpi-reservas").textContent = Math.round(sumRes);
+  document.getElementById("kpi-prebuy").textContent = Math.round(sumPreBuy);
+
+  // Aplicar colores dinámicos
+  aplicarColorDinamico("card-facturacion", "badge-facturacion", pct(sumFact, objPeriodo));
+  aplicarColorDinamico("card-ventas", "badge-ventas", pct(sumVentas, ventasPeriodo));
+  aplicarColorDinamico("card-propias", "badge-propias", pct(sumPropias, propiasPeriodo));
+  aplicarColorDinamico("card-busquedas", "badge-busquedas", pct(sumBusq, busqPeriodo));
+  aplicarColorDinamico("card-capt", "badge-capt", pct(sumCapt, captPeriodo));
+  aplicarColorDinamico("card-acm", "badge-acm", pct(sumAcm, acmPeriodo));
+  aplicarColorDinamico("card-prelist", "badge-prelist", pct(sumPre, prePeriodo));
+}
+
+// ========================================
+// FUNCIÓN: APLICAR COLOR DINÁMICO
+// ========================================
+function aplicarColorDinamico(cardId, badgeId, porcentaje) {
+  const card = document.getElementById(cardId);
+  const badge = document.getElementById(badgeId);
+  
+  // Limpiar clases anteriores
+  card.classList.remove('border-success-dynamic', 'border-warning-dynamic', 'border-danger-dynamic');
+  badge.className = 'badge badge-cumplimiento';
+  
+  // ✅ Aplicar según porcentaje: Rojo < 50%, Amarillo 50-99%, Verde >= 100%
+  if (porcentaje >= 100) {
+    card.classList.add('border-success-dynamic');
+    badge.classList.add('bg-success');
+  } else if (porcentaje >= 50) {
+    card.classList.add('border-warning-dynamic');
+    badge.classList.add('bg-warning', 'text-dark');
+  } else {
+    card.classList.add('border-danger-dynamic');
+    badge.classList.add('bg-danger');
+  }
+}
+
+// ========================================
+// VELOCÍMETRO - MEJORA SEGÚN % ACUMULADO REAL/SUPUESTO
+// ========================================
+function renderizarVelocimetro(meses) {
+  const hoy = new Date();
+  const mesActual = hoy.getMonth();
+  const totalObjetivo = planAnual.objetivoAnual || 1;
+
+  // Estacionalidad esperada al mes actual
+  let porcAcumuladoEsperado = 0;
+  for (let i = 0; i <= mesActual; i++) {
+    porcAcumuladoEsperado += FACTORES_ESTACIONALES[i] || (1 / 12);
+  }
+  let objetivoEsperado = totalObjetivo * porcAcumuladoEsperado;
+
+  // Avance real acumulado
+  let avanceReal = 0;
+  for (let i = 0; i <= mesActual; i++) {
+    const mes = trackingData[`mes_${i}`];
+    if (mes) avanceReal += mes.facturacion?.total ?? 0;
+  }
+
+  let porcentaje = objetivoEsperado > 0 ? (avanceReal / objetivoEsperado) * 100 : 0;
+  porcentaje = Math.round(porcentaje);
+
+  // Color/mensaje
+  let color, mensaje;
+  if (porcentaje >= 100) {
+    color = "#34c38f";
+    mensaje = "¡Vas excelente!";
+  } else if (porcentaje >= 80) {
+    color = "#f1b44c";
+    mensaje = "Atento: aceptable pero debajo de lo esperado.";
+  } else {
+    color = "#f46a6a";
+    mensaje = "Precaución: por debajo del ritmo necesario.";
+  }
+
+  // ApexCharts
+  if (charts.velocimetro) charts.velocimetro.destroy();
+  charts.velocimetro = new ApexCharts(document.querySelector("#chart-velocimetro"), {
+    chart: { height: 260, type: "radialBar", sparkline: { enabled: true } },
+    series: [Math.min(porcentaje, 160)],
+    plotOptions: {
+      radialBar: {
+        hollow: { size: "70%" },
+        track: { background: "#eee" },
+        dataLabels: {
+          show: true,
+          name: { show: false },
+          value: { fontSize: "32px", color: color, show: true, offsetY: 10, formatter: val => `${val}%` }
         }
+      }
+    },
+    colors: [color],
+    labels: [""],
+    tooltip: { enabled: false }
+  });
+  charts.velocimetro.render();
+
+  // Badge fijo UI
+  let badge = document.getElementById("badge-proyeccion");
+  if (badge) {
+    badge.style.position = "absolute";
+    badge.style.top = "12px";
+    badge.style.left = "14px";
+    badge.style.zIndex = "3";
+    badge.style.pointerEvents = "none";
+    badge.innerText = porcentaje >= 95 ? "Proyección confiable" : (porcentaje >= 80 ? "Dato preliminar" : "Advertencia");
+    badge.className = "badge confiabilidad-badge " + (porcentaje >= 100 ? "badge-success" : porcentaje >= 80 ? "badge-warning" : "badge-danger");
+  }
+
+  let mensajeBox = document.getElementById("mensaje-velocimetro");
+  if (mensajeBox) mensajeBox.textContent = mensaje;
+}
+
+// ========================================
+// MES ACTUAL VS PROMEDIO - MEJORA (PORCENTAJE PROPIO Y TOOLTIP)
+// ========================================
+function renderizarComparacionMes(meses) {
+  const labels = ["Facturación", "Transacciones", "Captaciones", "Pre-Listings"];
+  const indices = ["facturacion", "transacciones", "captaciones", "prelisting"];
+  const mesActual = (new Date()).getMonth();
+
+  let valoresMes = [], promedios = [], porcentajes = [];
+  indices.forEach((k, idx) => {
+    let valorMes = 0, valoresArray = [], label = k;
+    meses.forEach(m => {
+      const mes = trackingData[`mes_${m}`];
+      if (mes) {
+        if (k === "facturacion") valorMes = mesActual === m ? mes.facturacion?.total || 0 : valorMes;
+        else if (k === "transacciones") valorMes = mesActual === m ? (mes.ventas_propio?.total || 0) + (mes.ventas_busqueda?.total || 0) : valorMes;
+        else if (k === "captaciones") valorMes = mesActual === m ? mes.captaciones?.total || 0 : valorMes;
+        else if (k === "prelisting") valorMes = mesActual === m ? mes.prelisting?.total || 0 : valorMes;
+
+        // Suma para promedio
+        if (k === "facturacion") valoresArray.push(mes.facturacion?.total || 0);
+        else if (k === "transacciones") valoresArray.push((mes.ventas_propio?.total || 0) + (mes.ventas_busqueda?.total || 0));
+        else if (k === "captaciones") valoresArray.push(mes.captaciones?.total || 0);
+        else if (k === "prelisting") valoresArray.push(mes.prelisting?.total || 0);
+      }
+    });
+    let promedio = valoresArray.length > 0 ? valoresArray.reduce((a,b)=>a+b,0) / valoresArray.length : 1;
+    if (!isFinite(promedio) || promedio === 0) promedio = 1;
+    valoresMes.push(valorMes);
+    promedios.push(promedio);
+    porcentajes.push(Math.round((valorMes/promedio)*100));
+  });
+
+  if (charts.comparacionMes) charts.comparacionMes.destroy();
+  charts.comparacionMes = new ApexCharts(document.querySelector("#chart-comparacion-mes"), {
+    chart: { height: 260, type: "bar", toolbar: { show: false } },
+    series: [{
+      name: "Mes Actual vs Promedio",
+      data: porcentajes
+    }],
+    plotOptions: {
+      bar: { columnWidth: "35%", distributed: true }
+    },
+    colors: ["#34c38f", "#f1b44c", "#556ee6", "#f46a6a"],
+    dataLabels: { enabled: true, formatter: v => v + "%", style: { fontSize: "14px" } },
+    xaxis: {
+      categories: labels,
+      labels: { style: { fontSize: "14px" } }
+    },
+    tooltip: {
+      y: {
+        formatter: (val, opts) => {
+          const idx = opts.dataPointIndex;
+          return `Este mes: ${valoresMes[idx]}\nPromedio anual: ${promedios[idx].toFixed(2)}\nPct: ${porcentajes[idx]}%`;
+        }
+      }
     }
+  });
+  charts.comparacionMes.render();
+}
 
-    // Factor de Tiempo para objetivos lineales
-    const factor_linear = meses.length / 12;
+// ========================================
+// LÍNEA FACTURACIÓN (CON ESTACIONALIDAD)
+// ========================================
+function renderizarLineaTiempo(meses) {
+  const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const real = [], obj = [];
 
-    // Sumar Reales
-    let R_Fact=0, R_Capt=0, R_Acm=0, R_Pre=0, R_Cara=0, R_Res=0, R_PreBuy=0;
+  const objAnual = planAnual.objetivoAnual || 0;
+  const esEstacional = CONFIG_OFICINAS[planAnual.oficina];
+
+  for (let i = 0; i < 12; i++) {
+    const mes = trackingData[`mes_${i}`];
+    real.push(mes?.facturacion?.total || 0);
     
-    if (trackingData) { 
-        meses.forEach(m => {
-            const dm = trackingData[`mes_${m}`];
-            if (dm) {
-                R_Fact += (dm.facturacion?.total || 0);
-                R_Capt += (dm.captaciones?.total || 0);
-                R_Acm += (dm.acm?.total || 0);
-                R_Pre += (dm.prelisting?.total || 0);
-                R_Cara += (dm.caracara?.total || 0);
-                R_Res += (dm.reservas?.total || 0);
-                R_PreBuy += (dm.prebuy?.total || 0);
-            }
-        });
-    }
-
-    // Objetivos Base
-    const p = planAnual || {};
-    const O_Fact_Anual = parseFloat(p.objetivoAnual) || 0;
-    const ticket = parseFloat(p.ticketPromedio) || 0;
-    const comision = ticket * 0.03;
-    const efec = p.efectividades || {};
-    
-    // Objetivo Facturación (RESPETA ESTACIONALIDAD)
-    let factorObj = 0;
-    const oficina = p.oficina;
-    const usaEstacionalidad = CONFIG_OFICINAS[oficina] === true;
-
-    if (usaEstacionalidad) {
-        meses.forEach(m => { factorObj += FACTORES_ESTACIONALES[m]; });
+    if (esEstacional) {
+      obj.push(objAnual * FACTORES_ESTACIONALES[i]);
     } else {
-        factorObj = factor_linear;
+      obj.push(objAnual / 12);
     }
+  }
 
-    const O_Fact = O_Fact_Anual * factorObj;
-    const R_Ventas = comision > 0 ? R_Fact / comision : 0;
-    const O_Ventas = comision > 0 ? O_Fact / comision : 0;
+  const options = {
+    series: [
+      { name: 'Facturación Real', data: real },
+      { name: 'Objetivo Mes', data: obj }
+    ],
+    chart: { type: 'line', height: 340, toolbar: { show: false } },
+    stroke: { width: [3, 2], dashArray: [0, 5], curve: 'smooth' },
+    colors: ['#34c38f', '#556ee6'],
+    xaxis: { categories: labels },
+    yaxis: { 
+      labels: { 
+        formatter: (v) => new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', maximumFractionDigits:0}).format(v)
+      }
+    },
+    tooltip: {
+      y: {
+        formatter: (v) => new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', maximumFractionDigits:0}).format(v)
+      }
+    },
+    legend: { position: 'top' },
+    markers: { size: 5 }
+  };
 
-    const pctPropio = (parseFloat(efec.listingPropio) || 0) / 100;
-    const pctBusq = (parseFloat(efec.busquedas) || 0) / 100;
-    const O_Prop = O_Ventas * pctPropio;
-    const O_Busq = O_Ventas * pctBusq;
-    const R_Prop = R_Ventas * pctPropio;
-    const R_Busq = R_Ventas * pctBusq;
-
-    const captVenta = (parseFloat(efec.captVenta) || 0) / 100;
-    const acmCapt = (parseFloat(efec.acmCapt) || 0) / 100;
-    const preListAcm = (parseFloat(efec.preListAcm) || 0) / 100;
-
-    // Objetivos Operativos (SIEMPRE LINEALES)
-    const O_Prop_Anual = comision > 0 ? (O_Fact_Anual/comision) * pctPropio : 0;
-    
-    let O_Capt = 0, O_Acm = 0, O_Pre = 0;
-    if(captVenta>0) O_Capt = (O_Prop_Anual / captVenta) * factor_linear;
-    if(acmCapt>0) O_Acm = ( (O_Prop_Anual/captVenta) / acmCapt ) * factor_linear;
-    if(preListAcm>0) O_Pre = ( ((O_Prop_Anual/captVenta)/acmCapt) / preListAcm ) * factor_linear;
-
-    const O_Cara = meses.length * 10;
-
-    return { 
-        O_Fact, R_Fact, O_Ventas, R_Ventas, R_Prop, R_Busq, O_Prop, O_Busq,
-        O_Capt, R_Capt, O_Acm, R_Acm, O_Pre, R_Pre, O_Cara, R_Cara, R_Res, R_PreBuy
-    };
+  if (charts.linea) charts.linea.destroy();
+  charts.linea = new ApexCharts(document.querySelector("#chart-linea-tiempo"), options);
+  charts.linea.render();
 }
 
+// ========================================
+// LÍNEA CAPTACIONES
+// ========================================
+function renderizarLineaCaptaciones(meses) {
+  const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const real = [], obj = [];
 
+  const ef = planAnual.efectividades || {};
+  const ticket = planAnual.ticketPromedio || 0;
+  const objAnual = planAnual.objetivoAnual || 0;
+  const comProm = ticket * 0.03;
+  const ventasNec = comProm > 0 ? objAnual / comProm : 0;
+  const prop = (ef.listingPropio || 0) / 100;
+  const capt = (ef.captVenta || 0) / 100;
+  const ventasPropias = ventasNec * prop;
+  const captNec = capt > 0 ? ventasPropias / capt : 0;
 
+  const esEstacional = CONFIG_OFICINAS[planAnual.oficina];
 
-// --- Resto de las funciones (renderKPI, dibujarGauge, etc.) sin cambios ---
-
-function renderKPI(id, obj, real, esDinero = false) {
-    const pct = obj > 0 ? (real / obj) * 100 : 0;
-    const elReal = document.getElementById(`kpi-${id}-real`);
-    const elObj = document.getElementById(`kpi-${id}-obj`);
-    const elBadge = document.getElementById(`badge-${id}`);
-    const elCard = document.getElementById(`card-${id}`); 
-
-    if (!elReal) return;
-
-    if (esDinero) {
-        elReal.innerText = "$" + Math.round(real).toLocaleString();
-        elObj.innerText = "$" + Math.round(obj).toLocaleString();
+  for (let i = 0; i < 12; i++) {
+    const mes = trackingData[`mes_${i}`];
+    real.push(mes?.captaciones?.total || 0);
+    
+    if (esEstacional) {
+      obj.push(captNec * FACTORES_ESTACIONALES[i]);
     } else {
-        elReal.innerText = real.toFixed(1);
-        elObj.innerText = Math.round(obj);
+      obj.push(captNec / 12);
     }
-    
-    elBadge.innerText = pct.toFixed(0) + "%";
+  }
 
-    // Semáforo KPI
-    let colorClass = "bg-danger";
-    let borderClass = "border-danger";
-    
-    if (pct >= 100) { colorClass = "bg-success"; borderClass = "border-success"; }
-    else if (pct >= 50) { colorClass = "bg-warning text-dark"; borderClass = "border-warning"; }
+  const options = {
+    series: [
+      { name: 'Captaciones Reales', data: real },
+      { name: 'Objetivo Mes', data: obj }
+    ],
+    chart: { type: 'line', height: 340, toolbar: { show: false } },
+    stroke: { width: [3, 2], dashArray: [0, 5], curve: 'smooth' },
+    colors: ['#f1b44c', '#556ee6'],
+    xaxis: { categories: labels },
+    yaxis: { labels: { formatter: (v) => Math.round(v) } },
+    legend: { position: 'top' },
+    markers: { size: 5 }
+  };
 
-    elBadge.className = `badge rounded-pill p-2 ${colorClass}`;
-    elCard.className = `card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm ${borderClass}`;
+  if (charts.captaciones) charts.captaciones.destroy();
+  charts.captaciones = new ApexCharts(document.querySelector("#chart-linea-captaciones"), options);
+  charts.captaciones.render();
 }
 
-function dibujarGauge(id, real, objetivo) {
-    let rawPct = objetivo > 0 ? (real / objetivo) * 100 : 0;
-    let color = "#f46a6a";
-    if (rawPct >= 100) color = "#34c38f";
-    else if (rawPct >= 50) color = "#f1b44c";
-    const chartPct = Math.min(rawPct, 100);
+// ========================================
+// EMBUDO DE CONVERSIÓN
+// ========================================
+function renderizarEmbudoConversion(meses) {
+  let totalPre = 0, totalAcm = 0, totalCapt = 0, totalVentas = 0;
 
-    const options = {
-        series: [chartPct],
-        chart: { type: 'radialBar', height: 160, sparkline: { enabled: true } },
-        plotOptions: {
-            radialBar: {
-                startAngle: -90, endAngle: 90,
-                hollow: { size: '60%' },
-                track: { background: "#e7e7e7", strokeWidth: '97%' },
-                dataLabels: {
-                    name: { show: false },
-                    value: { 
-                        offsetY: -2, fontSize: '18px', fontWeight: 'bold',
-                        formatter: function() { return rawPct.toFixed(0) + "%"; }
-                    }
-                }
+  meses.forEach(m => {
+    const mes = trackingData[`mes_${m}`];
+    if (mes) {
+      totalPre += mes.prelisting?.total || 0;
+      totalAcm += mes.acm?.total || 0;
+      totalCapt += mes.captaciones?.total || 0;
+      totalVentas += (mes.ventas_propio?.total || 0) + (mes.ventas_busqueda?.total || 0);
+    }
+  });
+
+  const convPreAcm = totalPre > 0 ? ((totalAcm / totalPre) * 100).toFixed(1) : 0;
+  const convAcmCapt = totalAcm > 0 ? ((totalCapt / totalAcm) * 100).toFixed(1) : 0;
+  const convCaptVenta = totalCapt > 0 ? ((totalVentas / totalCapt) * 100).toFixed(1) : 0;
+  const convTotal = totalPre > 0 ? ((totalVentas / totalPre) * 100).toFixed(1) : 0;
+
+  const ef = planAnual.efectividades || {};
+  const planPreAcm = ef.preListAcm || 0;
+  const planAcmCapt = ef.acmCapt || 0;
+  const planCaptVenta = ef.captVenta || 0;
+
+  document.getElementById("conv-pre-acm").textContent = convPreAcm + "%";
+  document.getElementById("conv-acm-capt").textContent = convAcmCapt + "%";
+  document.getElementById("conv-capt-venta").textContent = convCaptVenta + "%";
+  document.getElementById("conv-total").textContent = convTotal + "%";
+
+  document.getElementById("plan-pre-acm").textContent = planPreAcm + "%";
+  document.getElementById("plan-acm-capt").textContent = planAcmCapt + "%";
+  document.getElementById("plan-capt-venta").textContent = planCaptVenta + "%";
+
+  colorearConversion("conv-pre-acm", convPreAcm, planPreAcm);
+  colorearConversion("conv-acm-capt", convAcmCapt, planAcmCapt);
+  colorearConversion("conv-capt-venta", convCaptVenta, planCaptVenta);
+
+  const options = {
+    series: [{
+      name: 'Cantidad',
+      data: [
+        Math.round(totalPre),
+        Math.round(totalAcm),
+        Math.round(totalCapt),
+        Math.round(totalVentas)
+      ]
+    }],
+    chart: { type: 'bar', height: 360, toolbar: { show: false } },
+    plotOptions: {
+      bar: {
+        horizontal: true,
+        distributed: true,
+        barHeight: '70%',
+        dataLabels: { position: 'center' }
+      }
+    },
+    dataLabels: {
+      enabled: true,
+      formatter: (val, opts) => {
+        const conversions = ['100%', convPreAcm + '%', convAcmCapt + '%', convCaptVenta + '%'];
+        return Math.round(val) + ' (' + conversions[opts.dataPointIndex] + ')';
+      },
+      offsetX: 0,
+      style: { 
+        fontSize: '13px', 
+        fontWeight: 'bold', 
+        colors: ['#fff'] 
+      }
+    },
+    colors: ['#556ee6', '#34c38f', '#f1b44c', '#50a5f1'],
+    xaxis: {
+      categories: ['Pre-Listings', 'ACMs', 'Captaciones', 'Ventas'],
+      labels: { style: { fontSize: '12px', fontWeight: 600 } }
+    },
+    yaxis: { labels: { style: { fontSize: '13px', fontWeight: 600 } } },
+    grid: { borderColor: '#f1f1f1' },
+    legend: { show: false }
+  };
+
+  if (charts.funnel) charts.funnel.destroy();
+  charts.funnel = new ApexCharts(document.querySelector("#chart-funnel"), options);
+  charts.funnel.render();
+}
+
+function colorearConversion(id, real, plan) {
+  const elem = document.getElementById(id);
+  const card = elem.closest('.funnel-card');
+  
+  if (plan > 0) {
+    const performance = (parseFloat(real) / parseFloat(plan)) * 100;
+    
+    if (performance >= 100) {
+      elem.style.color = '#34c38f';
+      card.style.borderColor = '#34c38f';
+      card.style.background = 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)';
+    } else if (performance >= 70) {
+      elem.style.color = '#f1b44c';
+      card.style.borderColor = '#f1b44c';
+      card.style.background = 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)';
+    } else {
+      elem.style.color = '#f46a6a';
+      card.style.borderColor = '#f46a6a';
+      card.style.background = 'linear-gradient(135deg, #fef2f2 0%, #fecaca 100%)';
+    }
+  }
+}
+
+// ========================================
+// CARA A CARA (META: 10 por SEMANA)
+// ========================================
+function renderizarCaraCara(meses) {
+  let totalRealizado = 0;
+
+  meses.forEach(m => {
+    const mes = trackingData[`mes_${m}`];
+    if (mes) totalRealizado += mes.caracara?.total || 0;
+  });
+
+  // META: 10 reuniones por SEMANA
+  const semanasDelPeriodo = calcularSemanasPeriodo(meses);
+  const metaPeriodo = 10 * semanasDelPeriodo;
+  const faltante = metaPeriodo > totalRealizado ? metaPeriodo - totalRealizado : 0;
+
+  const options = {
+    series: [totalRealizado, faltante],
+    chart: { type: 'donut', height: 320 },
+    labels: ['Realizadas', 'Faltantes'],
+    colors: ['#50a5f1', '#e9ecef'],
+    legend: { position: 'bottom' },
+    dataLabels: {
+      enabled: true,
+      formatter: (val, opts) => {
+        const valor = opts.w.config.series[opts.seriesIndex];
+        return valor + " (" + val.toFixed(1) + "%)";
+      }
+    },
+    plotOptions: {
+      pie: {
+        donut: {
+          size: '70%',
+          labels: {
+            show: true,
+            name: { show: true, fontSize: '16px' },
+            value: {
+              show: true,
+              fontSize: '24px',
+              fontWeight: 700,
+              formatter: (val) => Math.round(val)
+            },
+            total: {
+              show: true,
+              label: 'Meta del Período',
+              fontSize: '14px',
+              fontWeight: 600,
+              formatter: () => metaPeriodo + ' reuniones (' + semanasDelPeriodo + ' sem.)'
             }
-        },
-        fill: { colors: [color] }, labels: ['Progreso']
-    };
-
-    if(charts[id]) charts[id].destroy();
-    charts[id] = new ApexCharts(document.querySelector(`#${id}`), options);
-    charts[id].render();
-}
-
-function dibujarLineaTiempo() {
-    const seriesReal = [];
-    const seriesObj = [];
-    const meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-    
-    const p = planAnual || {};
-    const objAnual = parseFloat(p.objetivoAnual) || 0;
-    const oficina = p.oficina;
-    const usaEst = CONFIG_OFICINAS[oficina] === true;
-
-    for(let i=0; i<12; i++) {
-        let objMes = 0;
-        if (usaEst) objMes = objAnual * FACTORES_ESTACIONALES[i];
-        else objMes = objAnual / 12;
-        seriesObj.push(Math.round(objMes));
-
-        let realMes = 0;
-        if (trackingData && trackingData[`mes_${i}`]) {
-            realMes = trackingData[`mes_${i}`].facturacion?.total || 0;
+          }
         }
-        seriesReal.push(Math.round(realMes));
+      }
+    },
+    tooltip: {
+      y: {
+        formatter: (val) => Math.round(val) + ' reuniones'
+      }
     }
+  };
 
-    const options = {
-        series: [{ name: 'Objetivo', type: 'line', data: seriesObj }, { name: 'Real', type: 'column', data: seriesReal }],
-        chart: { height: 350, type: 'line', toolbar: {show: false} },
-        stroke: { width: [3, 0], curve: 'smooth' },
-        plotOptions: { bar: { columnWidth: '40%', borderRadius: 4 } },
-        xaxis: { categories: meses },
-        colors: ['#556ee6', '#34c38f'],
-        tooltip: { y: { formatter: (val) => "$" + val.toLocaleString() } },
-        title: { text: 'Facturación vs Objetivo', align: 'left', style: { fontSize: '14px' } }
-    };
-
-    if(charts.lineaFact) charts.lineaFact.destroy();
-    charts.lineaFact = new ApexCharts(document.querySelector("#chart-linea-tiempo"), options);
-    charts.lineaFact.render();
+  if (charts.caracara) charts.caracara.destroy();
+  charts.caracara = new ApexCharts(document.querySelector("#chart-caracara"), options);
+  charts.caracara.render();
 }
 
-function dibujarLineaCaptaciones() {
-    const seriesReal = [];
-    const seriesObj = [];
-    const meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-    
-    const p = planAnual || {};
-    const objAnual = parseFloat(p.objetivoAnual) || 0;
-    const ticket = parseFloat(p.ticketPromedio) || 0;
-    const comision = ticket * 0.03;
-    const efec = p.efectividades || {};
-    
-    const transacciones = comision > 0 ? objAnual / comision : 0;
-    const pctPropio = (parseFloat(efec.listingPropio) || 0) / 100;
-    const ventasPropias = transacciones * pctPropio;
-    const captVenta = (parseFloat(efec.captVenta) || 0) / 100;
-    const objCaptAnual = captVenta > 0 ? ventasPropias / captVenta : 0;
-    
-    const objMes = objCaptAnual / 12;
+// ✅ Calcular semanas del período
+function calcularSemanasPeriodo(meses) {
+  const diasPorMes = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const anio = parseInt(document.getElementById("filtro-anio").value) || new Date().getFullYear();
+  
+  const esBisiesto = (anio % 4 === 0 && anio % 100 !== 0) || (anio % 400 === 0);
+  if (esBisiesto) diasPorMes[1] = 29;
+  
+  let totalDias = 0;
+  meses.forEach(m => {
+    totalDias += diasPorMes[m];
+  });
+  
+  return Math.round(totalDias / 7);
+}
 
-    for(let i=0; i<12; i++) {
-        seriesObj.push(Math.ceil(objMes));
-        let realMes = 0;
-        if (trackingData && trackingData[`mes_${i}`]) {
-            realMes = trackingData[`mes_${i}`].captaciones?.total || 0;
-        }
-        seriesReal.push(realMes);
+// ========================================
+// MIX VENTAS
+// ========================================
+function renderizarMixVentas(meses) {
+  let sumPropias = 0, sumBusq = 0;
+
+  meses.forEach(m => {
+    const mes = trackingData[`mes_${m}`];
+    if (mes) {
+      sumPropias += mes.ventas_propio?.total || 0;
+      sumBusq += mes.ventas_busqueda?.total || 0;
     }
+  });
 
-    const options = {
-        series: [{ name: 'Objetivo', type: 'line', data: seriesObj }, { name: 'Real', type: 'column', data: seriesReal }],
-        chart: { height: 350, type: 'line', toolbar: {show: false} },
-        stroke: { width: [3, 0], curve: 'smooth' },
-        plotOptions: { bar: { columnWidth: '40%', borderRadius: 4 } },
-        xaxis: { categories: meses },
-        colors: ['#f1b44c', '#34c38f'],
-        title: { text: 'Captaciones vs Objetivo', align: 'left', style: { fontSize: '14px' } }
-    };
-
-    if(charts.lineaCapt) charts.lineaCapt.destroy();
-    charts.lineaCapt = new ApexCharts(document.querySelector("#chart-linea-captaciones"), options);
-    charts.lineaCapt.render();
-}
-
-function dibujarEmbudo(d) {
-    const efecPreACM = d.R_Pre > 0 ? (d.R_Acm / d.R_Pre) * 100 : 0;
-    const efecACMCapt = d.R_Acm > 0 ? (d.R_Capt / d.R_Acm) * 100 : 0;
-    const efecCaptVenta = d.R_Capt > 0 ? (d.R_Prop / d.R_Capt) * 100 : 0;
-
-    const options = {
-        series: [{
-            name: "Real",
-            data: [Math.round(d.R_Pre), Math.round(d.R_Acm), Math.round(d.R_Capt), Math.round(d.R_Prop)]
-        }],
-        chart: { type: 'bar', height: 300, toolbar: {show: false} },
-        plotOptions: { bar: { horizontal: true, barHeight: '60%', borderRadius: 0 } },
-        dataLabels: { enabled: true, formatter: (val) => Math.round(val) },
-        xaxis: { 
-            categories: [
-                `Pre-List (${Math.round(efecPreACM)}% a ACM)`, 
-                `ACM (${Math.round(efecACMCapt)}% a Capt)`, 
-                `Capt (${Math.round(efecCaptVenta)}% a Venta)`, 
-                'Ventas Propias'
-            ] 
-        },
-        colors: ['#5156be']
-    };
-
-    if(charts.funnel) charts.funnel.destroy();
-    charts.funnel = new ApexCharts(document.querySelector("#chart-funnel"), options);
-    charts.funnel.render();
-}
-
-function dibujarCaraCara(d) {
-    let pct = d.O_Cara > 0 ? (d.R_Cara / d.O_Cara) * 100 : 0;
-    const color = pct >= 100 ? "#34c38f" : (pct >= 50 ? "#f1b44c" : "#f46a6a");
-
-    const options = {
-        series: [Math.min(pct, 100)],
-        chart: { type: 'radialBar', height: 300 },
-        plotOptions: {
-            radialBar: {
-                hollow: { size: '70%' },
-                dataLabels: {
-                    name: { show: true, fontSize: '16px', color: '#888', offsetY: -10 },
-                    value: { show: true, fontSize: '24px', offsetY: 5, formatter: () => d.R_Cara + " / " + d.O_Cara }
-                }
+  const options = {
+    series: [sumPropias, sumBusq],
+    chart: { type: 'donut', height: 320 },
+    labels: ['Ventas Propias', 'Ventas Búsquedas'],
+    colors: ['#34c38f', '#f1b44c'],
+    legend: { position: 'bottom' },
+    dataLabels: {
+      enabled: true,
+      formatter: (val, opts) => {
+        const valor = opts.w.config.series[opts.seriesIndex];
+        return valor + " (" + val.toFixed(1) + "%)";
+      }
+    },
+    plotOptions: {
+      pie: {
+        donut: {
+          size: '70%',
+          labels: {
+            show: true,
+            name: { show: true, fontSize: '16px' },
+            value: {
+              show: true,
+              fontSize: '24px',
+              fontWeight: 700,
+              formatter: (val) => Math.round(val)
+            },
+            total: {
+              show: true,
+              label: 'Total Ventas',
+              fontSize: '14px',
+              fontWeight: 600,
+              formatter: () => Math.round(sumPropias + sumBusq)
             }
-        },
-        labels: ['Reuniones'],
-        colors: [color]
-    };
-    document.getElementById("meta-caracara-text").innerText = d.O_Cara;
-    if(charts.caracara) charts.caracara.destroy();
-    charts.caracara = new ApexCharts(document.querySelector("#chart-caracara"), options);
-    charts.caracara.render();
-}
+          }
+        }
+      }
+    }
+  };
 
-function dibujarMix(d) {
-    const options = {
-        series: [parseFloat(d.R_Prop.toFixed(1)), parseFloat(d.R_Busq.toFixed(1))],
-        chart: { type: 'donut', height: 280 },
-        labels: ['Propio', 'Búsquedas'],
-        colors: ['#556ee6', '#34c38f'],
-        legend: { position: 'bottom' }
-    };
-    if(charts.mix) charts.mix.destroy();
-    charts.mix = new ApexCharts(document.querySelector("#chart-mix"), options);
-    charts.mix.render();
+  if (charts.mix) charts.mix.destroy();
+  charts.mix = new ApexCharts(document.querySelector("#chart-mix"), options);
+  charts.mix.render();
 }

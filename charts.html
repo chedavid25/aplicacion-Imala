@@ -2,446 +2,622 @@
 <html lang="es">
 
 <head>
-    <meta charset="utf-8" />
-    <title>Mis Gráficos | Imalá</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="shortcut icon" href="assets/images/imala.ico">
-    
-    <link href="assets/css/bootstrap.min.css" id="bootstrap-style" rel="stylesheet" type="text/css" />
-    <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
-    <link href="assets/css/app.min.css" id="app-style" rel="stylesheet" type="text/css" />
-    
-    <style>
-        /* DEFINICIÓN DE VARIABLES RAÍZ */
-        :root {
-            --color-primario: #556ee6; /* Color primario Base (Azul Minia) */
-            --color-primario-suave: rgba(85, 110, 230, 0.15); 
-        }
-        
-        .card-h-100 { height: 100%; }
-        .apex-charts { min-height: 100px !important; }
-        
-        /* 1. USO DE VARIABLES */
-        .bg-soft-primary { background-color: var(--color-primario-suave) !important; }
-        .text-primary { color: var(--color-primario) !important; }
+  <meta charset="utf-8" />
+  <title>Mis Resultados | Imalá</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta content="Resultados y Gráficos de Gestión" name="description" />
+  <meta content="Imalá" name="author" />
+  <link rel="shortcut icon" href="assets/images/imala.ico">
 
-        /* 2. ESTILO DE LA BARRA LATERAL ACTIVA */
-        .vertical-menu #sidebar-menu .metismenu a.active {
-            color: var(--color-primario);
-            font-weight: 600;
-        }
-        
-        .vertical-menu #sidebar-menu .metismenu a.active i {
-            color: var(--color-primario);
-        }
-        
-        /* 3. Estilo Moderno para Tarjeta KPI (Mejorando la sombra y el hover) */
-        .kpi-card-modern {
-            transition: all 0.3s ease;
-            cursor: default;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Sombra base sutil */
-        }
-        .kpi-card-modern:hover {
-            transform: translateY(-3px); /* Ligeramente más elevado */
-            box-shadow: 0 6px 15px rgba(0,0,0,0.15) !important; /* Sombra más fuerte al hacer hover */
-        }
-        
-        /* 4. Estilos Semáforo */
-        .border-success { border-color: #34c38f !important; }
-        .border-warning { border-color: #f1b44c !important; }
-        .border-danger { border-color: #f46a6a !important; }
-    </style>
+  <link href="assets/css/bootstrap.min.css" id="bootstrap-style" rel="stylesheet" type="text/css" />
+  <link href="assets/css/icons.min.css" rel="stylesheet" type="text/css" />
+  <link href="assets/css/app.min.css" id="app-style" rel="stylesheet" type="text/css" />
+
+  <style>
+    /* Modern cards con transiciones suaves */
+    .kpi-card-modern {
+      border-radius: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border: none;
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+    .kpi-card-modern:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    }
+    
+    /* Borde inferior dinámico */
+    .kpi-card-modern.border-success-dynamic {
+      border-bottom: 4px solid #34c38f !important;
+      background: linear-gradient(to bottom, #fff 0%, #f0fdf4 100%);
+    }
+    .kpi-card-modern.border-warning-dynamic {
+      border-bottom: 4px solid #f1b44c !important;
+      background: linear-gradient(to bottom, #fff 0%, #fffbeb 100%);
+    }
+    .kpi-card-modern.border-danger-dynamic {
+      border-bottom: 4px solid #f46a6a !important;
+      background: linear-gradient(to bottom, #fff 0%, #fef2f2 100%);
+    }
+    
+    .kpi-num {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #243145;
+      margin: 0.3rem 0;
+    }
+    .kpi-label {
+      font-size: 0.95rem;
+      color: #67748e;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Badge de porcentaje más grande */
+    .badge-cumplimiento {
+      font-size: 1rem !important;
+      padding: 0.5rem 1rem !important;
+      font-weight: 700 !important;
+      border-radius: 0.5rem !important;
+    }
+    
+    /* Tarjetas del embudo */
+    .funnel-card {
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border: 2px solid #dee2e6;
+      transition: all 0.3s;
+    }
+    .funnel-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .funnel-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #556ee6;
+      margin: 0.5rem 0;
+    }
+    .funnel-label {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #343a40;
+      margin-bottom: 0.3rem;
+    }
+    
+    /* Alerta de confiabilidad (Posición corregida a Izquierda) */
+    .confiabilidad-badge {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      z-index: 3;
+      pointer-events: none;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.65rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+
+    .card-header {
+      position: relative;
+    }
+    
+    /* Botón de ayuda */
+    .btn-help {
+      background: transparent;
+      border: 2px solid #556ee6;
+      color: #556ee6;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-help:hover {
+      background: #556ee6;
+      color: white;
+    }
+  </style>
 </head>
 
 <body>
-    <div id="layout-wrapper">
-        
-        <header id="page-topbar">
-            <div class="navbar-header">
-                <div class="d-flex">
-                    <!-- LOGO -->
-                    <div class="navbar-brand-box">
-                        <a href="index.html" class="logo logo-dark">
-                            <span class="logo-sm">
-                                <img src="assets/images/imala.ico" alt="" height="24">
-                            </span>
-                            <span class="logo-lg">
-                                <img src="assets/images/imala.ico" alt="" height="24">
-                                <span class="logo-txt">Imalá</span>
-                            </span>
-                        </a>
+  <div id="layout-wrapper">
 
-                        <a href="index.html" class="logo logo-light">
-                            <span class="logo-sm">
-                                <img src="assets/images/imala.ico" alt="" height="24">
-                            </span>
-                            <span class="logo-lg">
-                                <img src="assets/images/imala.ico" alt="" height="24">
-                                <span class="logo-txt">Imalá</span>
-                            </span>
-                        </a>
-                    </div>
-
-                    <button type="button" class="btn btn-sm px-3 font-size-16 header-item" id="vertical-menu-btn">
-                        <i class="fa fa-fw fa-bars"></i>
-                    </button>
-                </div>
-
-                <div class="d-flex">
-                    <div class="dropdown d-inline-block">
-                        <button type="button" class="btn header-item bg-light-subtle border-start border-end"
-                            id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true"
-                            aria-expanded="false">
-                            <img class="rounded-circle header-profile-user" src="assets/images/users/avatar-1.jpg"
-                                alt="Header Avatar" id="header-avatar">
-                            <span class="d-none d-xl-inline-block ms-1 fw-medium" id="header-user-name"></span>
-                            <i class="mdi mdi-chevron-down d-none d-xl-inline-block"></i>
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-end">
-                            <div class="dropdown-divider"></div>
-                            <a class="dropdown-item" href="logout.html">
-                                <i class="mdi mdi-logout font-size-16 align-middle me-1"></i> Cerrar sesión
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </header>
-
-        <div class="vertical-menu">
-            <div data-simplebar class="h-100">
-                <div id="sidebar-menu">
-                    <ul class="metismenu list-unstyled" id="side-menu">
-                        <li class="menu-title">Menú</li>
-                        <li><a href="index.html"><i data-feather="home"></i><span>Planificador</span></a></li>
-                        <li><a href="tracking.html"><i data-feather="target"></i><span>Mi Trackeo</span></a></li>
-                        <li><a href="charts.html" class="active"><i data-feather="pie-chart"></i><span>Gráficos de Gestión</span></a></li>
-                        <li>
-    <a href="pages-faqs.html">  <!-- ✅ Correcto -->
-        <i data-feather="help-circle"></i>
-        <span>Preguntas Frecuentes</span>
-    </a>
-</li>
-
-                    </ul>
-                </div>
-            </div>
+    <header id="page-topbar">
+      <div class="navbar-header">
+        <div class="d-flex">
+          <div class="navbar-brand-box">
+            <a href="index.html" class="logo logo-dark">
+              <span class="logo-lg">
+                <img src="assets/images/imala.ico" alt="" height="24">
+                <span class="logo-txt">Imalá</span>
+              </span>
+            </a>
+          </div>
+          <button type="button" class="btn btn-sm px-3 font-size-16 header-item" id="vertical-menu-btn">
+            <i class="fa fa-fw fa-bars"></i>
+          </button>
         </div>
-
-        <div class="main-content">
-            <div class="page-content">
-                <div class="container-fluid">
-
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="card border-0 shadow-sm bg-soft-primary">
-                                <div class="card-body p-3">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <h5 class="mb-0 text-primary"><i class="mdi mdi-chart-timeline me-2"></i>Tablero de Resultados</h5>
-                                        <div class="d-flex align-items-center">
-                                            
-                                            <label class="me-2 fw-bold mb-0">Año:</label>
-                                            <select class="form-select form-select-sm me-3" id="filtro-anio" style="width: 100px;">
-                                                <option value="2027">2027</option>
-                                                <option value="2026">2026</option>
-                                                <option value="2025" selected>2025</option>
-                                                <option value="2024">2024</option>
-                                                <option value="2023">2023</option>
-                                            </select>
-                                            <label class="me-2 fw-bold mb-0">Período:</label>
-                                            <select class="form-select form-select-sm" id="filtro-periodo" style="width: 200px;">
-                                                <option value="mes_actual" selected>Mes Actual</option>
-                                                
-                                                <optgroup label="📅 Meses Individuales">
-                                                    <option value="0">Enero</option>
-                                                    <option value="1">Febrero</option>
-                                                    <option value="2">Marzo</option>
-                                                    <option value="3">Abril</option>
-                                                    <option value="4">Mayo</option>
-                                                    <option value="5">Junio</option>
-                                                    <option value="6">Julio</option>
-                                                    <option value="7">Agosto</option>
-                                                    <option value="8">Septiembre</option>
-                                                    <option value="9">Octubre</option>
-                                                    <option value="10">Noviembre</option>
-                                                    <option value="11">Diciembre</option>
-                                                </optgroup>
-
-                                                <optgroup label="📈 Trimestres">
-                                                    <option value="Q1">Q1 (Ene-Mar)</option>
-                                                    <option value="Q2">Q2 (Abr-Jun)</option>
-                                                    <option value="Q3">Q3 (Jul-Sep)</option>
-                                                    <option value="Q4">Q4 (Oct-Dic)</option>
-                                                </optgroup>
-
-                                                <optgroup label="📊 Semestres">
-                                                    <option value="S1">1º Semestre</option>
-                                                    <option value="S2">2º Semestre</option>
-                                                </optgroup>
-
-                                                <option value="acumulado">Acumulado (YTD)</option>
-                                                <option value="anual">Total Año (2025)</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mb-4">
-                        <div class="col-xl-3 col-md-6">
-                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-facturacion">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <p class="text-muted mb-1 fw-medium">Facturación</p>
-                                            <h4 class="mb-0" id="kpi-facturacion-real">$0</h4>
-                                        </div>
-                                        <span class="badge rounded-pill p-2" id="badge-facturacion">0%</span>
-                                    </div>
-                                    <div class="text-muted font-size-12 mt-3">
-                                        Meta: <span id="kpi-facturacion-obj">$0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6">
-                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-ventas">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <p class="text-muted mb-1 fw-medium">Transacciones Totales</p>
-                                            <h4 class="mb-0" id="kpi-ventas-real">0</h4>
-                                        </div>
-                                        <span class="badge rounded-pill p-2" id="badge-ventas">0%</span>
-                                    </div>
-                                    <div class="text-muted font-size-12 mt-3">
-                                        Meta: <span id="kpi-ventas-obj">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6">
-                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-propias">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <p class="text-muted mb-1 fw-medium">Ventas Propias</p>
-                                            <h4 class="mb-0" id="kpi-propias-real">0</h4>
-                                        </div>
-                                        <span class="badge rounded-pill p-2" id="badge-propias">0%</span>
-                                    </div>
-                                    <div class="text-muted font-size-12 mt-3">
-                                        Meta: <span id="kpi-propias-obj">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6">
-                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-busquedas">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <p class="text-muted mb-1 fw-medium">Ventas Búsquedas</p>
-                                            <h4 class="mb-0" id="kpi-busquedas-real">0</h4>
-                                        </div>
-                                        <span class="badge rounded-pill p-2" id="badge-busquedas">0%</span>
-                                    </div>
-                                    <div class="text-muted font-size-12 mt-3">
-                                        Meta: <span id="kpi-busquedas-obj">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-xl-3 col-md-6">
-                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-capt">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <p class="text-muted mb-1 fw-medium">Captaciones</p>
-                                            <h4 class="mb-0" id="kpi-capt-real">0</h4>
-                                        </div>
-                                        <span class="badge rounded-pill p-2" id="badge-capt">0%</span>
-                                    </div>
-                                    <div class="text-muted font-size-12 mt-3">
-                                        Meta: <span id="kpi-capt-obj">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6">
-                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-acm">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <p class="text-muted mb-1 fw-medium">ACMs Entregados</p>
-                                            <h4 class="mb-0" id="kpi-acm-real">0</h4>
-                                        </div>
-                                        <span class="badge rounded-pill p-2" id="badge-acm">0%</span>
-                                    </div>
-                                    <div class="text-muted font-size-12 mt-3">
-                                        Meta: <span id="kpi-acm-obj">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6">
-                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm" id="card-prelist">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <p class="text-muted mb-1 fw-medium">Pre-Listings</p>
-                                            <h4 class="mb-0" id="kpi-prelist-real">0</h4>
-                                        </div>
-                                        <span class="badge rounded-pill p-2" id="badge-prelist">0%</span>
-                                    </div>
-                                    <div class="text-muted font-size-12 mt-3">
-                                        Meta: <span id="kpi-prelist-obj">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6">
-                            <div class="card kpi-card-modern card-h-100 border-bottom border-4 shadow-sm border-info">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <p class="text-muted mb-1 fw-medium">Reservas</p>
-                                            <h5 class="mb-0" id="kpi-reservas">0</h5>
-                                        </div>
-                                        <div>
-                                            <p class="text-muted mb-1 fw-medium">Pre-Buy</p>
-                                            <h5 class="mb-0" id="kpi-prebuy">0</h5>
-                                        </div>
-                                    </div>
-                                    <div class="text-muted font-size-12 mt-3">Datos solo reales</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <h5 class="card-title mb-3">Cumplimiento del Período (%)</h5>
-                        </div>
-                        <div class="col">
-                            <div class="card"><div class="card-body p-2 text-center"><div id="gauge-fact" class="apex-charts"></div><p class="mt-2 mb-0 fw-bold">Facturación</p></div></div>
-                        </div>
-                        <div class="col">
-                            <div class="card"><div class="card-body p-2 text-center"><div id="gauge-ventas" class="apex-charts"></div><p class="mt-2 mb-0 fw-bold">Transacciones</p></div></div>
-                        </div>
-                        <div class="col">
-                            <div class="card"><div class="card-body p-2 text-center"><div id="gauge-capt" class="apex-charts"></div><p class="mt-2 mb-0 fw-bold">Captaciones</p></div></div>
-                        </div>
-                        <div class="col">
-                            <div class="card"><div class="card-body p-2 text-center"><div id="gauge-acm" class="apex-charts"></div><p class="mt-2 mb-0 fw-bold">ACMs</p></div></div>
-                        </div>
-                        <div class="col">
-                            <div class="card"><div class="card-body p-2 text-center"><div id="gauge-pre" class="apex-charts"></div><p class="mt-2 mb-0 fw-bold">Pre-List</p></div></div>
-                        </div>
-                    </div>
-
-                    <div class="row mt-2">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h4 class="card-title mb-0">Tendencia Mensual: Facturación vs Objetivo</h4>
-                                </div>
-                                <div class="card-body">
-                                    <div id="chart-linea-tiempo" class="apex-charts" dir="ltr"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mt-2">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h4 class="card-title mb-0">Tendencia Mensual: Captaciones vs Objetivo</h4>
-                                </div>
-                                <div class="card-body">
-                                    <div id="chart-linea-captaciones" class="apex-charts" dir="ltr"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mt-4">
-                        <div class="col-xl-4">
-                            <div class="card h-100">
-                                <div class="card-header">
-                                    <h4 class="card-title mb-0">Embudo & Efectividad</h4>
-                                </div>
-                                <div class="card-body">
-                                    <div id="chart-funnel" class="apex-charts" dir="ltr"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-4">
-                            <div class="card h-100">
-                                <div class="card-header">
-                                    <h4 class="card-title mb-0">Cara a Cara</h4>
-                                </div>
-                                <div class="card-body text-center">
-                                    <div id="chart-caracara" class="apex-charts" dir="ltr"></div>
-                                    <p class="text-muted mt-2">Meta: <span id="meta-caracara-text">10</span> reuniones</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-4">
-                            <div class="card h-100">
-                                <div class="card-header">
-                                    <h4 class="card-title mb-0">Origen Ventas</h4>
-                                </div>
-                                <div class="card-body">
-                                    <div id="chart-mix" class="apex-charts" dir="ltr"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                </div>
+        <div class="d-flex">
+          <div class="dropdown d-inline-block">
+            <button type="button" class="btn header-item bg-light-subtle border-start border-end"
+                id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true"
+                aria-expanded="false">
+              <img class="rounded-circle header-profile-user" src="assets/images/users/avatar-1.jpg"
+                  alt="Header Avatar" id="header-avatar">
+              <span class="d-none d-xl-inline-block ms-1 fw-medium" id="header-user-name">Mi Cuenta</span>
+              <i class="mdi mdi-chevron-down d-none d-xl-inline-block"></i>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end">
+              <a class="dropdown-item" href="index.html">
+                  <i class="mdi mdi-home font-size-16 align-middle me-1"></i> Mi Planificador
+              </a>
+              <div class="dropdown-divider"></div>
+              <a class="dropdown-item text-danger" href="logout.html">
+                  <i class="mdi mdi-logout font-size-16 align-middle me-1"></i> Cerrar Sesión
+              </a>
             </div>
-            
-            <footer class="footer">
-                <div class="container-fluid">
-                    <div class="row">
-                        <div class="col-sm-6"><script>document.write(new Date().getFullYear())</script> © Imalá.</div>
-                    </div>
-                </div>
-            </footer>
+          </div>
         </div>
+      </div>
+    </header>
+
+    <div class="vertical-menu">
+      <div data-simplebar class="h-100">
+        <div id="sidebar-menu">
+          <ul class="metismenu list-unstyled" id="side-menu">
+            <li class="menu-title">Menú Principal</li>
+            <li>
+              <a href="index.html">
+                <i data-feather="home"></i>
+                <span>Mi Planificador</span>
+              </a>
+            </li>
+            <li>
+              <a href="tracking.html">
+                <i data-feather="trending-up"></i>
+                <span>Tracking Mensual</span>
+              </a>
+            </li>
+            <li>
+              <a href="charts.html" class="active">
+                <i data-feather="bar-chart-2"></i>
+                <span>Mis Resultados</span>
+              </a>
+            </li>
+            <li class="menu-title">Ayuda</li>
+            <li>
+              <a href="pages-faqs.html">
+                <i data-feather="help-circle"></i>
+                <span>Preguntas Frecuentes</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
 
-    
+    <div class="main-content">
+      <div class="page-content">
+        <div class="container-fluid">
 
-    <script src="assets/libs/jquery/jquery.min.js"></script>
-    <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <script src="assets/libs/metismenu/metisMenu.min.js"></script>
-    <script src="assets/libs/simplebar/simplebar.min.js"></script>
-    <script src="assets/libs/node-waves/waves.min.js"></script>
-    <script src="assets/libs/feather-icons/feather.min.js"></script>
-    <script src="assets/libs/pace-js/pace.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <script src="assets/js/app.js"></script>
+          <div class="row">
+            <div class="col-12">
+              <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+                <h4 class="mb-sm-0 font-size-18">Mis Resultados</h4>
+                <div class="page-title-right">
+                  <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="index.html">Inicio</a></li>
+                    <li class="breadcrumb-item active">Resultados</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
 
-    <script type="module" src="firebase-config.js"></script>
-    <script type="module" src="charts.js"></script>
-    <script type="module" src="header-user.js"></script>
+          <div class="row mb-4">
+            <div class="col-12">
+              <div class="card shadow-sm">
+                <div class="card-body py-3">
+                  <div class="d-flex flex-wrap align-items-center gap-3">
+                    <div>
+                      <label class="form-label mb-1 small fw-bold text-muted">AÑO</label>
+                      <select id="filtro-anio" class="form-select">
+                        <option value="2027">2027</option>
+                        <option value="2026">2026</option>
+                        <option value="2025" selected>2025</option>
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                      </select>
+                    </div>
+                    <div class="flex-grow-1">
+                      <label class="form-label mb-1 small fw-bold text-muted">PERÍODO</label>
+                      <select id="filtro-periodo" class="form-select">
+                        <option value="anual">Año completo</option>
+                        <option value="acumulado">Acumulado hasta hoy</option>
+                        <option value="mes_actual">Mes Actual</option>
+                        <optgroup label="Por Mes">
+                          <option value="mes_0">Enero</option>
+                          <option value="mes_1">Febrero</option>
+                          <option value="mes_2">Marzo</option>
+                          <option value="mes_3">Abril</option>
+                          <option value="mes_4">Mayo</option>
+                          <option value="mes_5">Junio</option>
+                          <option value="mes_6">Julio</option>
+                          <option value="mes_7">Agosto</option>
+                          <option value="mes_8">Septiembre</option>
+                          <option value="mes_9">Octubre</option>
+                          <option value="mes_10">Noviembre</option>
+                          <option value="mes_11">Diciembre</option>
+                        </optgroup>
+                        <optgroup label="Por Trimestre">
+                          <option value="Q1">1° Trimestre (Ene-Mar)</option>
+                          <option value="Q2">2° Trimestre (Abr-Jun)</option>
+                          <option value="Q3">3° Trimestre (Jul-Sep)</option>
+                          <option value="Q4">4° Trimestre (Oct-Dic)</option>
+                        </optgroup>
+                        <optgroup label="Por Semestre">
+                          <option value="S1">1° Semestre (Ene-Jun)</option>
+                          <option value="S2">2° Semestre (Jul-Dic)</option>
+                        </optgroup>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
+          <div class="row g-3 mb-4">
+            <div class="col-lg-3 col-md-4 col-6">
+              <div class="card kpi-card-modern card-h-100" id="card-facturacion">
+                <div class="card-body text-center">
+                  <div class="kpi-label mb-2">Facturación</div>
+                  <div class="kpi-num" id="kpi-facturacion-real">$0</div>
+                  <div class="text-muted small mb-2">Meta: <span id="kpi-facturacion-obj">$0</span></div>
+                  <span class="badge badge-cumplimiento bg-secondary" id="badge-facturacion">0%</span>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-4 col-6">
+              <div class="card kpi-card-modern card-h-100" id="card-ventas">
+                <div class="card-body text-center">
+                  <div class="kpi-label mb-2">Transacciones</div>
+                  <div class="kpi-num" id="kpi-ventas-real">0</div>
+                  <div class="text-muted small mb-2">Meta: <span id="kpi-ventas-obj">0</span></div>
+                  <span class="badge badge-cumplimiento bg-secondary" id="badge-ventas">0%</span>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-4 col-6">
+              <div class="card kpi-card-modern card-h-100" id="card-propias">
+                <div class="card-body text-center">
+                  <div class="kpi-label mb-2">Ventas Propias</div>
+                  <div class="kpi-num" id="kpi-propias-real">0</div>
+                  <div class="text-muted small mb-2">Meta: <span id="kpi-propias-obj">0</span></div>
+                  <span class="badge badge-cumplimiento bg-secondary" id="badge-propias">0%</span>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-4 col-6">
+              <div class="card kpi-card-modern card-h-100" id="card-busquedas">
+                <div class="card-body text-center">
+                  <div class="kpi-label mb-2">Ventas Búsqueda</div>
+                  <div class="kpi-num" id="kpi-busquedas-real">0</div>
+                  <div class="text-muted small mb-2">Meta: <span id="kpi-busquedas-obj">0</span></div>
+                  <span class="badge badge-cumplimiento bg-secondary" id="badge-busquedas">0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-lg col-md-4 col-6">
+              <div class="card kpi-card-modern card-h-100" id="card-capt">
+                <div class="card-body text-center">
+                  <div class="kpi-label mb-2">Captaciones</div>
+                  <div class="kpi-num" id="kpi-capt-real">0</div>
+                  <div class="text-muted small mb-2">Meta: <span id="kpi-capt-obj">0</span></div>
+                  <span class="badge badge-cumplimiento bg-secondary" id="badge-capt">0%</span>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg col-md-4 col-6">
+              <div class="card kpi-card-modern card-h-100" id="card-acm">
+                <div class="card-body text-center">
+                  <div class="kpi-label mb-2">ACMs</div>
+                  <div class="kpi-num" id="kpi-acm-real">0</div>
+                  <div class="text-muted small mb-2">Meta: <span id="kpi-acm-obj">0</span></div>
+                  <span class="badge badge-cumplimiento bg-secondary" id="badge-acm">0%</span>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg col-md-4 col-6">
+              <div class="card kpi-card-modern card-h-100" id="card-prelist">
+                <div class="card-body text-center">
+                  <div class="kpi-label mb-2">Pre-Listings</div>
+                  <div class="kpi-num" id="kpi-prelist-real">0</div>
+                  <div class="text-muted small mb-2">Meta: <span id="kpi-prelist-obj">0</span></div>
+                  <span class="badge badge-cumplimiento bg-secondary" id="badge-prelist">0%</span>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg col-md-4 col-6">
+              <div class="card kpi-card-modern card-h-100 border-bottom border-3 border-secondary">
+                <div class="card-body text-center">
+                  <div class="kpi-label mb-2">Reservas</div>
+                  <div class="kpi-num" id="kpi-reservas">0</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg col-md-4 col-6">
+              <div class="card kpi-card-modern card-h-100 border-bottom border-3 border-dark">
+                <div class="card-body text-center">
+                  <div class="kpi-label mb-2">Pre-Buy</div>
+                  <div class="kpi-num" id="kpi-prebuy">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-4 g-4">
+            
+            <div class="col-xl-6">
+              <div class="card kpi-card-modern border-success-dynamic card-h-100" id="card-proyeccion-anual">
+                <div class="card-header bg-white border-bottom">
+                  <span class="badge confiabilidad-badge" id="badge-proyeccion">
+                    Calculando...
+                  </span>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Proyección Anual</h5>
+                    <button type="button" class="btn btn-info btn-sm float-end ms-2" data-bs-toggle="modal" data-bs-target="#modal-ayuda-velocimetro">
+                      <i class="mdi mdi-help-circle"></i> Ayuda
+                    </button>
+                  </div>
+                </div>
+                <div class="card-body p-4">
+                  <h6 class="mb-3 text-muted text-center" style="font-size: 0.90rem; line-height: 1.5;">
+                    Esta métrica mide tu avance acumulado real respecto al objetivo anual que deberías llevar según la fecha de hoy (considerando estacionalidad si aplica). Se diferencia de las KPIs porque aquí siempre comparás contra el objetivo anual acumulado esperado y no contra metas de períodos breves.
+                  </h6>
+                  <div id="chart-velocimetro" style="height: 280px;"></div>
+                  <div id="mensaje-velocimetro" class="mt-2 text-center fw-bold"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-6">
+              <div class="card kpi-card-modern border-warning-dynamic card-h-100" id="card-comparacion-mes">
+                <div class="card-header bg-white border-bottom">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Mes Actual vs Promedio</h5>
+                    <button type="button" class="btn btn-info btn-sm float-end ms-2" data-bs-toggle="modal" data-bs-target="#modal-ayuda-comparacion">
+                      <i class="mdi mdi-help-circle"></i> Ayuda
+                    </button>
+                  </div>
+                </div>
+                <div class="card-body p-4">
+                  <div class="mb-3 text-muted text-center" style="font-size:0.90rem; line-height: 1.5;">
+                    Cada barra representa el mes actual como % sobre el promedio anual de esa métrica. Así, todas las métricas se muestran comparables, aunque sus valores absolutos sean muy distintos.
+                  </div>
+                  <div id="chart-comparacion-mes" style="height: 280px;"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          <div class="row mb-4 g-4">
+            <div class="col-xl-6">
+              <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                  <h5 class="card-title mb-0">
+                    <i class="bx bx-line-chart text-primary"></i> Evolución Facturación
+                  </h5>
+                </div>
+                <div class="card-body">
+                  <div id="chart-linea-tiempo" style="height: 340px;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-6">
+              <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                  <h5 class="card-title mb-0">
+                    <i class="bx bx-bar-chart text-success"></i> Evolución Captaciones
+                  </h5>
+                </div>
+                <div class="card-body">
+                  <div id="chart-linea-captaciones" style="height: 340px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <div class="col-12">
+              <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                      <i class="mdi mdi-filter-variant text-primary"></i> Mi Embudo de Conversión
+                    </h5>
+                    <button class="btn btn-help" data-bs-toggle="modal" data-bs-target="#modal-ayuda-embudo">
+                      <i class="mdi mdi-help-circle"></i> ¿Qué es esto?
+                    </button>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p class="text-muted font-size-13 mb-4">
+                    Visualiza tu flujo completo. Identifica dónde se pierden oportunidades y dónde mejorar.
+                  </p>
+                  
+                  <div class="row text-center mb-4">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                      <div class="funnel-card">
+                        <div class="funnel-label">Pre → ACM</div>
+                        <div class="funnel-value" id="conv-pre-acm">--%</div>
+                        <div class="small text-muted">Plan: <span class="fw-bold" id="plan-pre-acm">--%</span></div>
+                      </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                      <div class="funnel-card">
+                        <div class="funnel-label">ACM → Capt</div>
+                        <div class="funnel-value" id="conv-acm-capt">--%</div>
+                        <div class="small text-muted">Plan: <span class="fw-bold" id="plan-acm-capt">--%</span></div>
+                      </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                      <div class="funnel-card">
+                        <div class="funnel-label">Capt → Venta</div>
+                        <div class="funnel-value" id="conv-capt-venta">--%</div>
+                        <div class="small text-muted">Plan: <span class="fw-bold" id="plan-capt-venta">--%</span></div>
+                      </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                      <div class="funnel-card">
+                        <div class="funnel-label">Conversión Total</div>
+                        <div class="funnel-value" id="conv-total">--%</div>
+                        <div class="small text-muted">Pre → Venta</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div id="chart-funnel" style="height: 360px;"></div>
+
+                  <div class="alert alert-info border-0 mt-3" role="alert">
+                    <i class="mdi mdi-lightbulb-outline me-2"></i>
+                    <strong>Tip:</strong> Si ves una caída fuerte entre etapas, ahí está tu mayor oportunidad de mejora.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-4 g-4">
+            <div class="col-xl-6">
+              <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                  <h5 class="card-title mb-0">
+                    <i class="bx bx-user-pin text-info"></i> Cara a Cara
+                  </h5>
+                </div>
+                <div class="card-body">
+                  <p class="text-muted font-size-13 mb-3">Meta: 10 reuniones por semana</p>
+                  <div id="chart-caracara" style="height: 320px;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-6">
+              <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                  <h5 class="card-title mb-0">
+                    <i class="bx bx-pie-chart-alt text-danger"></i> Distribución de Ventas
+                  </h5>
+                </div>
+                <div class="card-body">
+                  <div id="chart-mix" style="height: 320px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <footer class="footer">
+        <div class="container-fluid">
+          <div class="row">
+            <div class="col-sm-6">
+              <script>document.write(new Date().getFullYear())</script> © Imalá.
+            </div>
+            <div class="col-sm-6">
+              <div class="text-sm-end d-none d-sm-block">
+                Sistema de Gestión Inmobiliaria
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+  </div>
+
+  <div class="modal fade" id="modal-ayuda-embudo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">
+            <i class="mdi mdi-filter-variant me-2"></i>¿Qué es el Embudo de Conversión?
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <h6 class="text-primary mb-3">📊 ¿Para qué sirve?</h6>
+          <p>El embudo muestra tu <strong>eficiencia de ventas paso a paso</strong>. Te permite identificar en qué fase del proceso estás perdiendo más oportunidades.</p>
+          <hr class="my-4">
+          <h6 class="text-primary mb-3">🎯 ¿Cómo interpreto los colores?</h6>
+          <ul>
+            <li>🟢 <strong>Verde:</strong> Estás cumpliendo o superando tu plan</li>
+            <li>🟡 <strong>Amarillo:</strong> Estás cerca pero por debajo del plan</li>
+            <li>🔴 <strong>Rojo:</strong> Conversión muy baja, requiere acción inmediata</li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Entendido</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modal-ayuda-velocimetro" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title" id="modal-ayuda-velocimetro-label">Ayuda - Proyección Anual</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          El velocímetro anual compara tu avance acumulado real a la fecha contra lo que deberías llevar según tu objetivo anual y la estacionalidad esperada. Si alcanzás el 100% o más, estás al día frente a tu meta anual. Si vas por debajo, el color del gráfico lo indica (rojo/amarillo/verde). Se diferencia de las KPIs porque mide el progreso acumulado, no el rendimiento puntual de un solo mes. El badge te avisa si la proyección es confiable según el ritmo y los datos.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-success" data-bs-dismiss="modal">Entendido</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modal-ayuda-comparacion" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title" id="modal-ayuda-comparacion-label">Ayuda - Mes Actual vs Promedio</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          En este gráfico, cada barra muestra el rendimiento del mes actual en cada métrica (“Facturación”, “Transacciones”, “Captaciones”, “Pre-Listings”) como porcentaje respecto al promedio anual propio de esa métrica. Así, aunque los valores absolutos sean muy diferentes, todas las métricas son comparables visualmente. Usá los tooltips para ver el valor real, el promedio anual y el % respecto al promedio.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-warning text-dark" data-bs-dismiss="modal">Entendido</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/libs/jquery/jquery.min.js"></script>
+  <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/libs/metismenu/metisMenu.min.js"></script>
+  <script src="assets/libs/simplebar/simplebar.min.js"></script>
+  <script src="assets/libs/node-waves/waves.min.js"></script>
+  <script src="assets/libs/feather-icons/feather.min.js"></script>
+  <script src="assets/libs/pace-js/pace.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="assets/js/app.js"></script>
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="charts.js"></script>
+  <script type="module" src="header-user.js"></script>
 </body>
 </html>
+
+
+

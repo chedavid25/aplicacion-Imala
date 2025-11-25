@@ -353,5 +353,66 @@
     <script type="module" src="main.js"></script>
     <script type="module" src="header-user.js"></script>
 
+    <!-- SPLASH SCREEN -->
+<div id="splash-screen" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #556ee6 0%, #34c38f 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.3s ease-out;
+">
+    <img src="assets/images/Letras Imala.png" alt="Imalá" style="width: 150px; margin-bottom: 30px; animation: pulse 1.5s infinite;">
+    <div style="color: white; font-size: 18px; font-weight: 500; margin-bottom: 20px;">
+        Sistema de Planificación Imalá
+    </div>
+    <div class="spinner-border text-light" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Cargando...</span>
+    </div>
+</div>
+
+<style>
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.8; }
+    }
+    
+    /* Oculta el contenido mientras carga */
+    body.loading #layout-wrapper {
+        visibility: hidden;
+    }
+</style>
+
+<script>
+    // Agregar clase loading al body inicialmente
+    document.body.classList.add('loading');
+    
+    // Función para ocultar splash
+    window.hideSplash = function() {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.style.opacity = '0';
+            setTimeout(() => {
+                splash.remove();
+                document.body.classList.remove('loading');
+            }, 300);
+        }
+    };
+    
+    // Timeout de seguridad (si tarda mucho, ocultar igual)
+    setTimeout(() => {
+        if (document.getElementById('splash-screen')) {
+            hideSplash();
+        }
+    }, 3000);
+</script>
+
+
 </body>
 </html>

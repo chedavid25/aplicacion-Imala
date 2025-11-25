@@ -89,6 +89,10 @@ onAuthStateChanged(auth, async (user) => {
     } else {
         window.location.href = "login.html";
     }
+    // ✅ OCULTAR SPLASH AL TERMINAR DE CARGAR (NUEVO)
+    if (window.hideSplash) {
+        window.hideSplash();
+    }
 });
 
 // ------------------------------------------------------------------

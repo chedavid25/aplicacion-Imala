@@ -248,66 +248,130 @@ if (btnGuardar) {
     });
 }
 
+// ------------------------------------------------------------------
 
 // ------------------------------------------------------------------
-// PDF
+// FUNCIÓN AUXILIAR: Cargar imagen desde URL (Evita Base64 en código)
+// ------------------------------------------------------------------
+async function cargarImagenDesdeUrl(url) {
+    try {
+        const respuesta = await fetch(url);
+        const blob = await respuesta.blob();
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.warn("No se pudo cargar la imagen de fondo:", error);
+        return null;
+    }
+}
+
+// ------------------------------------------------------------------
+// GENERAR PDF
 // ------------------------------------------------------------------
 const btnPdf = document.getElementById('btnGenerarPdf');
 if (btnPdf) {
-    btnPdf.addEventListener('click', () => {
+    // Nota el "async" aquí antes de () =>
+    btnPdf.addEventListener('click', async () => {
         if (!window.jspdf) { alert("Librería PDF no cargada."); return; }
         if (!validarPlanificacionCompleta()) return;
 
         const datos = obtenerDatosFormulario();
         if (!datos) { alert("Calculá primero."); return; }
         
-        const { jsPDF } = window.jspdf;
-        const docPdf = new jsPDF();
-        
-        const bg = ""; 
-        if (bg) docPdf.addImage(bg, 'PNG', 0, 0, 210, 297);
+        const btnOriginalText = btnPdf.innerHTML;
+        btnPdf.innerHTML = `<i class="bx bx-loader bx-spin"></i> Generando...`;
+        btnPdf.disabled = true;
 
-        const nombre = document.getElementById('miNombre').value || "Agente";
-        const oficina = document.getElementById('miOficina').value || "";
-        const year = document.getElementById('selector-plan-anio').value || new Date().getFullYear();
-        const fecha = new Date().toLocaleDateString();
-        
-        let y = 70; const m = 20; const colV = 115;
+        try {
+            const { jsPDF } = window.jspdf;
+            const docPdf = new jsPDF();
 
-        const title = (t) => { docPdf.setFontSize(14); docPdf.setTextColor(255,126,0); docPdf.setFont("helvetica","bold"); docPdf.text(t,m,y); y+=12; };
-        const item = (lbl, val) => { docPdf.setFontSize(11); docPdf.setTextColor(50,50,50); docPdf.setFont("helvetica","bold"); docPdf.text(lbl,m,y); docPdf.setFont("helvetica","normal"); docPdf.text(String(val),colV,y); y+=8; };
+            // 1. CARGA DINÁMICA DEL FONDO
+            // Asegurate de poner el nombre correcto de tu archivo aquí
+            const backgroundUrl = "assets/images/membretada-vertical.png"; 
+            const imgData = await cargarImagenDesdeUrl(backgroundUrl);
 
-        docPdf.setFontSize(12); docPdf.setTextColor(0,0,0); docPdf.setFont("helvetica","bold");
-        docPdf.text(`Agente: ${nombre}`, m, 45);
-        docPdf.text(`Oficina: ${oficina}`, m, 51);
-        docPdf.text(`Planificación: ${year}`, m, 57);
-        docPdf.text(`Fecha: ${fecha}`, 150, 45);
+            // 2. INSERTAR IMAGEN (Si se cargó correctamente)
+            if (imgData) {
+                // 'JPEG' o 'PNG' según tu archivo. 
+                // 0, 0 son las coordenadas X, Y. 
+                // 210, 297 es el tamaño A4 en mm.
+                docPdf.addImage(imgData, 'PNG', 0, 0, 210, 297); 
+            }
 
-        const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+            // 3. DATOS DEL TEXTO
+            const nombre = document.getElementById('miNombre').value || "Agente";
+            const oficina = document.getElementById('miOficina').value || "";
+            const year = document.getElementById('selector-plan-anio').value || new Date().getFullYear();
+            const fecha = new Date().toLocaleDateString();
+            
+            // CONFIGURACIÓN DE TEXTO (Ajustá las coordenadas 'y' según tu diseño de fondo)
+            let y = 70; const m = 20; const colV = 115;
 
-        title("Mis Efectividades:");
-        item("Objetivo anual:", fmt.format(datos.objetivo));
-        item("Ticket Promedio:", fmt.format(datos.ticket));
-        y+=5;
-        item("% Prelisting a ACM:", datos.rawPreListAcm + "%");
-        item("% ACM a Captación:", datos.rawAcmCapt + "%");
-        item("% Captación a Venta:", datos.rawCaptVenta + "%");
-        item("% Listing Propio:", datos.rawListPropio + "%");
-        item("% Búsquedas:", datos.rawBusquedas + "%");
+            const title = (t) => { 
+                docPdf.setFontSize(14); 
+                docPdf.setTextColor(255, 126, 0); // Naranja Imalá
+                docPdf.setFont("helvetica", "bold"); 
+                docPdf.text(t, m, y); 
+                y += 12; 
+            };
+            
+            const item = (lbl, val) => { 
+                docPdf.setFontSize(11); 
+                docPdf.setTextColor(50, 50, 50); 
+                docPdf.setFont("helvetica", "bold"); 
+                docPdf.text(lbl, m, y); 
+                docPdf.setFont("helvetica", "normal"); 
+                docPdf.text(String(val), colV, y); 
+                y += 8; 
+            };
 
-        y+=12;
-        title("Gestión Necesaria:");
-        const show = (v) => `${Math.ceil(v)} Anual / ${(v/12).toFixed(1)} Mensual`;
-        
-        item("Transacciones:", show(datos.ventasTotales));
-        item("Ventas Propias:", show(datos.ventasPropias));
-        item("Ventas Búsquedas:", show(datos.ventasBusq));
-        y+=5;
-        item("Captaciones:", show(datos.captaciones));
-        item("ACM:", show(datos.acms));
-        item("Prelisting:", show(datos.preListings));
+            // CABECERA
+            docPdf.setFontSize(12); docPdf.setTextColor(0,0,0); docPdf.setFont("helvetica","bold");
+            docPdf.text(`Agente: ${nombre}`, m, 45);
+            docPdf.text(`Oficina: ${oficina}`, m, 51);
+            docPdf.text(`Planificación: ${year}`, m, 57);
+            docPdf.text(`Fecha: ${fecha}`, 150, 45);
 
-        docPdf.save(`Planificacion_${nombre}_${year}.pdf`); 
+            const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+            // BLOQUE 1
+            title("Mis Efectividades:");
+            item("Objetivo anual:", fmt.format(datos.objetivo));
+            item("Ticket Promedio:", fmt.format(datos.ticket));
+            y += 5;
+            item("% Prelisting a ACM:", datos.rawPreListAcm + "%");
+            item("% ACM a Captación:", datos.rawAcmCapt + "%");
+            item("% Captación a Venta:", datos.rawCaptVenta + "%");
+            item("% Listing Propio:", datos.rawListPropio + "%");
+            item("% Búsquedas:", datos.rawBusquedas + "%");
+
+            y += 12;
+            
+            // BLOQUE 2
+            title("Gestión Necesaria:");
+            const show = (v) => `${Math.ceil(v)} Anual / ${(v/12).toFixed(1)} Mensual`;
+            
+            item("Transacciones:", show(datos.ventasTotales));
+            item("Ventas Propias:", show(datos.ventasPropias));
+            item("Ventas Búsquedas:", show(datos.ventasBusq));
+            y += 5;
+            item("Captaciones:", show(datos.captaciones));
+            item("ACM:", show(datos.acms));
+            item("Prelisting:", show(datos.preListings));
+
+            docPdf.save(`Planificacion_${nombre}_${year}.pdf`);
+
+        } catch (error) {
+            console.error("Error generando PDF", error);
+            alert("Hubo un error al generar el PDF.");
+        } finally {
+            btnPdf.innerHTML = btnOriginalText;
+            btnPdf.disabled = false;
+        }
     });
 }
 

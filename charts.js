@@ -99,6 +99,7 @@ function renderizarTodo() {
   renderizarEmbudoConversion(meses);
   renderizarCaraCara(meses);
   renderizarMixVentas(meses);
+  renderizarFinanzasPersonales(meses);
 }
 
 // ========================================
@@ -738,4 +739,88 @@ function renderizarMixVentas(meses) {
   if (charts.mix) charts.mix.destroy();
   charts.mix = new ApexCharts(document.querySelector("#chart-mix"), options);
   charts.mix.render();
+}
+
+// ========================================
+// RENDERIZAR FINANZAS PERSONALES (BOLSILLO)
+// ========================================
+function renderizarFinanzasPersonales(meses) {
+  // 1. Obtener datos de facturación bruta del periodo seleccionado
+  let facturacionBrutaPeriodo = 0;
+  meses.forEach(m => {
+    const mes = trackingData[`mes_${m}`];
+    if (mes) {
+      facturacionBrutaPeriodo += mes.facturacion?.total || 0;
+    }
+  });
+
+  // 2. Obtener datos del Plan (Condición y Gasto Deseado)
+  // Nota: Aseguramos valores por defecto para evitar errores matemáticos
+  const condicionAgente = planAnual.condicionAgente || 0; // Ejemplo: 45
+  const gastoMensualDeseado = planAnual.gastoMensual || 0; // Ejemplo: 2000 USD
+
+  // 3. Cálculos
+  // Cuánto le queda en el bolsillo (Neto)
+  const ingresoNetoTotal = facturacionBrutaPeriodo * (condicionAgente / 100);
+  
+  // Promedio mensual (Neto / Cantidad de meses seleccionados en el filtro)
+  // Evitamos división por cero si meses.length es 0
+  const mesesCount = meses.length > 0 ? meses.length : 1;
+  const promedioMensualNeto = ingresoNetoTotal / mesesCount;
+
+  // Porcentaje de cobertura (Promedio Neto / Gasto Deseado)
+  let porcentajeCobertura = 0;
+  if (gastoMensualDeseado > 0) {
+    porcentajeCobertura = (promedioMensualNeto / gastoMensualDeseado) * 100;
+  }
+
+  // 4. Formateadores
+  const fmtUSD = (v) => new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', maximumFractionDigits:0}).format(v);
+
+  // 5. Renderizar en el HTML
+  
+  // Card 1: Neto Total
+  const elNetoTotal = document.getElementById("finanzas-neto-total");
+  const elCondicion = document.getElementById("finanzas-condicion-pct");
+  if(elNetoTotal) elNetoTotal.textContent = fmtUSD(ingresoNetoTotal);
+  if(elCondicion) elCondicion.textContent = condicionAgente;
+
+  // Card 2: Promedio Mensual
+  const elPromedioNeto = document.getElementById("finanzas-promedio-neto");
+  if(elPromedioNeto) elPromedioNeto.textContent = fmtUSD(promedioMensualNeto);
+
+  // Card 3: Cobertura
+  const elCobertura = document.getElementById("finanzas-cobertura");
+  const elGastoObj = document.getElementById("finanzas-gasto-objetivo");
+  const cardCobertura = document.getElementById("card-cobertura-vida");
+
+  if(elGastoObj) elGastoObj.textContent = fmtUSD(gastoMensualDeseado);
+  
+  if(elCobertura) {
+    const valCobertura = Math.round(porcentajeCobertura);
+    elCobertura.textContent = valCobertura + "%";
+
+    // Colores dinámicos para la tarjeta de Cobertura
+    if(cardCobertura) {
+        // Reseteamos estilos base manuales
+        cardCobertura.className = "card kpi-card-modern h-100"; 
+        
+        if (valCobertura >= 100) {
+            // Verde: Cubre o sobra
+            cardCobertura.style.borderBottom = "4px solid #34c38f";
+            elCobertura.classList.remove("text-danger", "text-warning");
+            elCobertura.classList.add("text-success");
+        } else if (valCobertura >= 80) {
+            // Amarillo: Casi llega
+            cardCobertura.style.borderBottom = "4px solid #f1b44c";
+            elCobertura.classList.remove("text-danger", "text-success");
+            elCobertura.classList.add("text-warning");
+        } else {
+            // Rojo: No cubre
+            cardCobertura.style.borderBottom = "4px solid #f46a6a";
+            elCobertura.classList.remove("text-success", "text-warning");
+            elCobertura.classList.add("text-danger");
+        }
+    }
+  }
 }

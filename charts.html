@@ -523,6 +523,76 @@
           </div>
 
         </div>
+        <div class="row mb-4">
+    <div class="col-12">
+        <h5 class="card-title mb-3 text-muted">
+            <i class="bx bx-wallet-alt text-success me-1"></i> Economía Personal (Bolsillo)
+        </h5>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+        <div class="card kpi-card-modern border-success-dynamic h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="avatar-sm me-3">
+                        <span class="avatar-title bg-success-subtle text-success rounded-circle font-size-18">
+                            <i class="bx bx-money"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="text-muted font-size-13 text-uppercase">Ingreso Neto (Bolsillo)</div>
+                        <h4 class="mb-0 mt-1" id="finanzas-neto-total">$0</h4>
+                    </div>
+                </div>
+                <div class="text-muted font-size-12">
+                    En este período (según tu condición del <span id="finanzas-condicion-pct">--</span>%)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+        <div class="card kpi-card-modern border-info-dynamic h-100" style="border-bottom: 4px solid #50a5f1;">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="avatar-sm me-3">
+                        <span class="avatar-title bg-info-subtle text-info rounded-circle font-size-18">
+                            <i class="bx bx-trending-up"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="text-muted font-size-13 text-uppercase">Promedio de bolsillo</div>
+                        <h4 class="mb-0 mt-1" id="finanzas-promedio-neto">$0</h4>
+                    </div>
+                </div>
+                <div class="text-muted font-size-12">
+                    Promedio real de bolsillo por mes
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-12">
+        <div class="card kpi-card-modern border-warning-dynamic h-100" id="card-cobertura-vida">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="avatar-sm me-3">
+                        <span class="avatar-title bg-warning-subtle text-warning rounded-circle font-size-18">
+                            <i class="bx bx-home-heart"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="text-muted font-size-13 text-uppercase">Cobertura Estilo de Vida</div>
+                        <h4 class="mb-0 mt-1" id="finanzas-cobertura">0%</h4>
+                    </div>
+                </div>
+                <div class="text-muted font-size-12">
+                    De tu Gasto Deseado (<span id="finanzas-gasto-objetivo">$0</span>/mes)
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
       </div>
 
       <footer class="footer">
@@ -603,6 +673,8 @@
       </div>
     </div>
   </div>
+
+  
 
   <script src="assets/libs/jquery/jquery.min.js"></script>
   <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>

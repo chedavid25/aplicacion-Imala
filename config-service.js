@@ -15,7 +15,7 @@ const FACTORES_DEFECTO = [
 ];
 
 const OFICINAS_DEFECTO = [
-    "RE/MAX BIG", "RE/MAX FORUM", "RE/MAX FLOR", "RE/MAX ACUERDO", "CROAR PROPIEDADES"
+    "Oficina Demo"
 ];
 
 // Variable caché para no llamar a DB mil veces

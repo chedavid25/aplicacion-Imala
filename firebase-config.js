@@ -18,3 +18,4 @@ const app = initializeApp(firebaseConfig);
 
 // Exportamos la app para usarla en otros archivos
 export { app };
+

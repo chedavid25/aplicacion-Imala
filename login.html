@@ -206,7 +206,7 @@
             return usuarioSnap.exists() && usuarioSnap.data().rol;
         }
 
-        // LOGIN POR EMAIL
+// LOGIN POR EMAIL
         document.getElementById("btn-login").addEventListener("click", async () => {
             const email = document.getElementById("email").value;
             const password = document.getElementById("password").value;
@@ -220,11 +220,7 @@
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
 
-                if (user.email === "contacto@imala.com.ar") {
-                    window.location.href = "index.html";
-                    return;
-                }
-
+                // 1. Verificamos SIEMPRE en la base de datos, sin excepciones hardcodeadas
                 const estaRegistradoUid = await verificarUsuarioRegistradoUid(user.uid);
 
                 if (estaRegistradoUid) {
@@ -249,11 +245,7 @@
                 const result = await signInWithPopup(auth, googleProvider);
                 const user = result.user;
 
-                if (user.email === "contacto@imala.com.ar") {
-                    window.location.href = "index.html";
-                    return;
-                }
-
+                // 1. Verificamos SIEMPRE en la base de datos
                 const estaRegistradoUid = await verificarUsuarioRegistradoUid(user.uid);
 
                 if (estaRegistradoUid) {

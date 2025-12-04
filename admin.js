@@ -10,7 +10,6 @@ import { ConfigService } from "./config-service.js";
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const ADMIN_EMAIL = "contacto@imala.com.ar";
 const OFICINA_DEFAULT_DEMO = "A. Oficina Modelo"; // <--- NOMBRE EXACTO DE TU OFICINA MODELO
 
 let currentUserRole = null;
@@ -86,26 +85,38 @@ function poblarOficinasModal() {
 }
 
 // --- Auth ---
+// --- Auth ---
 onAuthStateChanged(auth, async (user) => {
     if (!user) { window.location.href = "login.html"; return; }
     try {
         await inicializarSistema();
+        // 1. Buscamos el usuario en la base de datos para ver su ROL real
         const snap = await getDoc(doc(db, "usuarios", user.uid));
         let rol = "agente", oficina = "";
         
-        if (snap.exists()) { const d = snap.data(); rol = d.rol || "agente"; oficina = d.oficina || ""; }
-        else {
-            rol = (user.email === ADMIN_EMAIL) ? "admin" : "agente";
-            await setDoc(doc(db,"usuarios",user.uid), { nombre: user.displayName||"", emailAuth: user.email, rol, oficina: "", creadoEn: new Date().toISOString() }, {merge:true});
+        if (snap.exists()) { 
+            const d = snap.data(); 
+            rol = d.rol || "agente"; 
+            oficina = d.oficina || ""; 
+        } else {
+            // 2. SI NO EXISTE: Lo creamos siempre como 'agente'.
+            // (Aquí estaba antes el error de seguridad que corregimos)
+            await setDoc(doc(db,"usuarios",user.uid), { 
+                nombre: user.displayName || "", 
+                emailAuth: user.email, 
+                rol: "agente", 
+                oficina: "", 
+                creadoEn: new Date().toISOString() 
+            }, {merge:true});
         }
         
-        if (user.email === ADMIN_EMAIL && rol !== "admin") { rol = "admin"; await updateDoc(doc(db,"usuarios",user.uid), { rol: "admin" }); }
-
+        // 3. Lógica de redirección según el ROL seguro
         if (rol === "admin") {
             currentUserRole = "admin";
-            document.getElementById("filtro-anio").value = new Date().getFullYear();
-            
-            // Si poblarFiltroOficinas ya puso la "Oficina Modelo", cargarDatosCompletos respetará ese filtro visualmente
+            // Prevenir error si el filtro no existe en el HTML
+            if(document.getElementById("filtro-anio")) {
+                document.getElementById("filtro-anio").value = new Date().getFullYear();
+            }
             cargarDatosCompletos();
 
         } else if (rol === "broker") {
@@ -114,12 +125,17 @@ onAuthStateChanged(auth, async (user) => {
             
             const sel = document.getElementById("filtro-oficina");
             if(sel) { 
-                sel.value = oficina; // El broker SIEMPRE ve su oficina, pisa cualquier default
+                sel.value = oficina; 
                 sel.disabled = true; 
             }
-            document.getElementById("filtro-anio").value = new Date().getFullYear();
+            if(document.getElementById("filtro-anio")) {
+                document.getElementById("filtro-anio").value = new Date().getFullYear();
+            }
             cargarDatosCompletos();
-        } else { window.location.href = "index.html"; }
+        } else { 
+            // Si es agente, lo sacamos del panel de admin
+            window.location.href = "index.html"; 
+        }
 
     } catch (err) { console.error(err); }
 });

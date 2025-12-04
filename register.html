@@ -118,7 +118,7 @@
     <script src="assets/libs/feather-icons/feather.min.js"></script>
     <script src="assets/libs/pace-js/pace.min.js"></script>
 
-    <script type="module">
+   <script type="module">
         import { getAuth, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
         import { app } from "./firebase-config.js";
@@ -156,7 +156,7 @@
                 
             } catch (error) {
                 console.error("Error cargando oficinas:", error);
-                alert("Error al cargar las oficinas. Por favor, recarga la página.");
+                selectOficina.innerHTML = '<option value="" disabled>Error de carga</option>';
             }
         }
 
@@ -188,86 +188,105 @@
         }
 
         // --- REGISTRO CON GOOGLE ---
-      // --- REGISTRO CON GOOGLE ---
-// --- REGISTRO CON GOOGLE ---
-document.getElementById("btn-google").addEventListener("click", async () => {
-    if (!validarIngreso()) return; 
+        document.getElementById("btn-google").addEventListener("click", async () => {
+            if (!validarIngreso()) return; 
 
-    try {
-        const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
-        const oficina = document.getElementById("reg-oficina").value;
-        
-        // ✅ Usar formato correcto: UID_ANIO
-        const anioActual = new Date().getFullYear();
-        const docId = `${user.uid}_${anioActual}`;
-        const docRef = doc(db, "planificaciones", docId);
-        const docSnap = await getDoc(docRef);
+            try {
+                const result = await signInWithPopup(auth, googleProvider);
+                const user = result.user;
+                const oficina = document.getElementById("reg-oficina").value;
+                const anioActual = new Date().getFullYear();
 
-        if (!docSnap.exists()) {
-            await setDoc(docRef, {
-                nombreAgente: user.displayName || "Agente Google",
-                oficina: oficina,
-                emailUsuario: user.email,
-                fechaRegistro: new Date().toISOString(),
-                objetivoAnual: 0
-            });
-        }
-        window.location.href = "index.html";
+                // 1. CREAR PERFIL DE SEGURIDAD (CRÍTICO PARA LOGIN Y ADMIN)
+                // Usamos merge por si ya existía, pero actualizamos oficina si es necesario
+                await setDoc(doc(db, "usuarios", user.uid), {
+                    nombre: user.displayName || "Agente Google",
+                    emailAuth: user.email,
+                    rol: "agente", // Rol por defecto
+                    oficina: oficina,
+                    creadoEn: new Date().toISOString()
+                }, { merge: true });
 
-    } catch (error) {
-        console.error("Error Google:", error);
-        alert("Error: " + error.message);
-    }
-});
+                // 2. CREAR PLANIFICACIÓN INICIAL (Si no existe)
+                const docId = `${user.uid}_${anioActual}`;
+                const docRefPlan = doc(db, "planificaciones", docId);
+                const docSnapPlan = await getDoc(docRefPlan);
 
-// --- REGISTRO CON EMAIL ---
-document.getElementById("btn-register").addEventListener("click", async () => {
-    if (!validarIngreso()) return; 
+                if (!docSnapPlan.exists()) {
+                    await setDoc(docRefPlan, {
+                        nombreAgente: user.displayName || "Agente Google",
+                        oficina: oficina,
+                        emailUsuario: user.email,
+                        fechaRegistro: new Date().toISOString(),
+                        objetivoAnual: 0
+                    });
+                }
+                
+                window.location.href = "index.html";
 
-    const nombre = document.getElementById("reg-nombre").value;
-    const email = document.getElementById("reg-email").value;
-    const password = document.getElementById("reg-password").value;
-    const oficina = document.getElementById("reg-oficina").value;
-
-    if (!nombre || !email || !password) {
-        alert("Completa todos los campos.");
-        return;
-    }
-
-    const btn = document.getElementById("btn-register");
-    btn.innerText = "Verificando...";
-    btn.disabled = true;
-
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-
-        // ✅ Usar formato correcto: UID_ANIO
-        const anioActual = new Date().getFullYear();
-        const docId = `${user.uid}_${anioActual}`;
-
-        await setDoc(doc(db, "planificaciones", docId), {
-            nombreAgente: nombre,
-            oficina: oficina,
-            emailUsuario: email,
-            fechaRegistro: new Date().toISOString(),
-            objetivoAnual: 0
+            } catch (error) {
+                console.error("Error Google:", error);
+                alert("Error: " + error.message);
+            }
         });
 
-        alert("¡Cuenta creada con éxito!");
-        window.location.href = "index.html";
+        // --- REGISTRO CON EMAIL ---
+        document.getElementById("btn-register").addEventListener("click", async () => {
+            if (!validarIngreso()) return; 
 
-    } catch (error) {
-        let mensaje = "Error al registrarse.";
-        if (error.code === 'auth/email-already-in-use') mensaje = "Este email ya está registrado.";
-        if (error.code === 'auth/weak-password') mensaje = "La contraseña es muy débil.";
-        alert(mensaje);
-        btn.innerText = "Registrarme con Email";
-        btn.disabled = false;
-    }
-});
+            const nombre = document.getElementById("reg-nombre").value;
+            const email = document.getElementById("reg-email").value;
+            const password = document.getElementById("reg-password").value;
+            const oficina = document.getElementById("reg-oficina").value;
 
+            if (!nombre || !email || !password) {
+                alert("Completa todos los campos.");
+                return;
+            }
+
+            const btn = document.getElementById("btn-register");
+            const textoOriginal = btn.innerText;
+            btn.innerText = "Creando cuenta...";
+            btn.disabled = true;
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                const anioActual = new Date().getFullYear();
+
+                // 1. CREAR PERFIL DE SEGURIDAD (CRÍTICO)
+                await setDoc(doc(db, "usuarios", user.uid), {
+                    nombre: nombre,
+                    emailAuth: email,
+                    rol: "agente",
+                    oficina: oficina,
+                    creadoEn: new Date().toISOString()
+                });
+
+                // 2. CREAR PLANIFICACIÓN INICIAL
+                const docId = `${user.uid}_${anioActual}`;
+                await setDoc(doc(db, "planificaciones", docId), {
+                    nombreAgente: nombre,
+                    oficina: oficina,
+                    emailUsuario: email,
+                    fechaRegistro: new Date().toISOString(),
+                    objetivoAnual: 0
+                });
+
+                alert("¡Cuenta creada con éxito!");
+                window.location.href = "index.html";
+
+            } catch (error) {
+                console.error(error);
+                let mensaje = "Error al registrarse.";
+                if (error.code === 'auth/email-already-in-use') mensaje = "Este email ya está registrado.";
+                if (error.code === 'auth/weak-password') mensaje = "La contraseña es muy débil (mínimo 6 caracteres).";
+                alert(mensaje);
+            } finally {
+                btn.innerText = textoOriginal;
+                btn.disabled = false;
+            }
+        });
     </script>
 </body>
 </html>

@@ -227,18 +227,39 @@ if (btnGuardar) {
             };
 
             await setDoc(doc(db, "planificaciones", `${currentUser.uid}_${year}`), data);
-            alert(`✅ Planificación ${year} guardada exitosamente.`);
+            // Usamos Swal.fire en lugar de alert
+Swal.fire({
+    title: '¡Guardado!',
+    text: `Tu planificación ${year} se ha registrado con éxito.`,
+    icon: 'success',
+    confirmButtonColor: '#556ee6' // Color azul de tu tema
+});
 
         } catch (error) {
             console.error("Error guardando:", error);
             
-            // ✅ MENSAJES DE ERROR MEJORADOS
+            // ✅ MENSAJES DE ERROR MEJORADOS CON SWEETALERT
             if (error.code === 'permission-denied') {
-                alert("❌ No tienes permisos para guardar. Contacta al administrador.");
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Acceso Denegado',
+                    text: 'No tienes permisos para guardar. Contacta al administrador.',
+                    confirmButtonColor: '#f46a6a'
+                });
             } else if (error.code === 'unavailable') {
-                alert("❌ Sin conexión a internet. Intenta de nuevo cuando tengas conexión.");
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin Conexión',
+                    text: 'No tienes internet. Intenta de nuevo cuando recuperes la conexión.',
+                    confirmButtonColor: '#f1b44c'
+                });
             } else {
-                alert("❌ Error al guardar: " + error.message);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Ocurrió un error',
+                    text: 'No se pudo guardar: ' + error.message,
+                    confirmButtonColor: '#f46a6a'
+                });
             }
             
         } finally {

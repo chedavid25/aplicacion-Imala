@@ -1,4 +1,4 @@
-// main.js - Planificación Anual (Con campo 'anio' para indexación)
+// main.js - Planificación Anual (Versión Final con SweetAlert)
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
@@ -33,7 +33,7 @@ async function cargarOficinasEnSelect() {
 }
 
 // ------------------------------------------------------------------
-// VALIDACIÓN
+// VALIDACIÓN (Actualizada con SweetAlert)
 // ------------------------------------------------------------------
 function validarPlanificacionCompleta() {
     const year = document.getElementById('selector-plan-anio').value;
@@ -51,16 +51,25 @@ function validarPlanificacionCompleta() {
     const prop = document.querySelector('.listingPropio').value;
     const busq = document.querySelector('.busquedas').value;
     
-    if (!year) { alert("Selecciona el Año."); return false; }
-    if (!nombre.trim()) { alert("Ingresa tu Nombre."); return false; }
-    if (!oficina) { alert("Selecciona tu Oficina."); return false; }
+    if (!year) { 
+        Swal.fire({ title: 'Falta información', text: 'Selecciona el Año.', icon: 'warning', confirmButtonColor: '#f1b44c' });
+        return false; 
+    }
+    if (!nombre.trim()) { 
+        Swal.fire({ title: 'Falta información', text: 'Ingresa tu Nombre.', icon: 'warning', confirmButtonColor: '#f1b44c' });
+        return false; 
+    }
+    if (!oficina) { 
+        Swal.fire({ title: 'Falta información', text: 'Selecciona tu Oficina.', icon: 'warning', confirmButtonColor: '#f1b44c' });
+        return false; 
+    }
 
     if (gasto <= 0 || condicion <= 0 || objetivo <= 0 || ticket <= 0) {
-        alert("Los valores financieros deben ser mayores a cero.");
+        Swal.fire({ title: 'Datos incorrectos', text: 'Los valores financieros deben ser mayores a cero.', icon: 'warning', confirmButtonColor: '#f1b44c' });
         return false;
     }
     if (pre === '' || acm === '' || capt === '' || prop === '' || busq === '') {
-        alert("Completa todas las efectividades (poné 0 si corresponde).");
+        Swal.fire({ title: 'Falta información', text: 'Completa todas las efectividades (poné 0 si corresponde).', icon: 'warning', confirmButtonColor: '#f1b44c' });
         return false;
     }
     return true;
@@ -89,7 +98,7 @@ onAuthStateChanged(auth, async (user) => {
     } else {
         window.location.href = "login.html";
     }
-    // ✅ OCULTAR SPLASH AL TERMINAR DE CARGAR (NUEVO)
+    // ✅ OCULTAR SPLASH AL TERMINAR DE CARGAR
     if (window.hideSplash) {
         window.hideSplash();
     }
@@ -173,7 +182,7 @@ function obtenerDatosFormulario() {
 }
 
 // ------------------------------------------------------------------
-// GUARDAR EN FIRESTORE (Optimizado)
+// GUARDAR EN FIRESTORE (Con SweetAlert Completo)
 // ------------------------------------------------------------------
 const btnGuardar = document.getElementById('btnGuardarPlanificacion');
 if (btnGuardar) {
@@ -187,13 +196,23 @@ if (btnGuardar) {
         // ✅ VALIDACIÓN 2: Verificar que haya calculado la gestión
         const datosCalc = obtenerDatosFormulario();
         if (!datosCalc) { 
-            alert("❌ Primero debes CALCULAR TU GESTIÓN haciendo clic en 'Calcular Gestión' antes de guardar."); 
+            Swal.fire({
+                title: 'Atención',
+                text: "Primero debes CALCULAR TU GESTIÓN haciendo clic en 'Calcular Gestión' antes de guardar.",
+                icon: 'warning',
+                confirmButtonColor: '#f1b44c'
+            });
             return; 
         }
         
         // ✅ VALIDACIÓN 3: Verificar que los resultados tengan sentido
         if (datosCalc.ventasTotales <= 0 || datosCalc.comisionPromedio <= 0) {
-            alert("❌ Los valores calculados no son válidos. Revisa tus datos e intenta de nuevo.");
+            Swal.fire({
+                title: 'Datos Inválidos',
+                text: "Los valores calculados no son válidos. Revisa tus datos e intenta de nuevo.",
+                icon: 'error',
+                confirmButtonColor: '#f46a6a'
+            });
             return;
         }
         
@@ -227,13 +246,13 @@ if (btnGuardar) {
             };
 
             await setDoc(doc(db, "planificaciones", `${currentUser.uid}_${year}`), data);
-            // Usamos Swal.fire en lugar de alert
-Swal.fire({
-    title: '¡Guardado!',
-    text: `Tu planificación ${year} se ha registrado con éxito.`,
-    icon: 'success',
-    confirmButtonColor: '#556ee6' // Color azul de tu tema
-});
+            
+            Swal.fire({
+                title: '¡Guardado!',
+                text: `Tu planificación ${year} se ha registrado con éxito.`,
+                icon: 'success',
+                confirmButtonColor: '#556ee6'
+            });
 
         } catch (error) {
             console.error("Error guardando:", error);
@@ -270,8 +289,6 @@ Swal.fire({
 }
 
 // ------------------------------------------------------------------
-
-// ------------------------------------------------------------------
 // FUNCIÓN AUXILIAR: Cargar imagen desde URL (Evita Base64 en código)
 // ------------------------------------------------------------------
 async function cargarImagenDesdeUrl(url) {
@@ -294,13 +311,18 @@ async function cargarImagenDesdeUrl(url) {
 // ------------------------------------------------------------------
 const btnPdf = document.getElementById('btnGenerarPdf');
 if (btnPdf) {
-    // Nota el "async" aquí antes de () =>
     btnPdf.addEventListener('click', async () => {
-        if (!window.jspdf) { alert("Librería PDF no cargada."); return; }
-        if (!validarPlanificacionCompleta()) return;
+        if (!window.jspdf) { 
+            Swal.fire({ icon:'error', title:'Error', text:'Librería PDF no cargada.' }); 
+            return; 
+        }
+        if (!validarPlanificacionCompleta()) return; // Ya tiene Swal dentro
 
         const datos = obtenerDatosFormulario();
-        if (!datos) { alert("Calculá primero."); return; }
+        if (!datos) { 
+            Swal.fire({ title:'Atención', text:'Calculá primero la gestión.', icon:'warning', confirmButtonColor:'#f1b44c' }); 
+            return; 
+        }
         
         const btnOriginalText = btnPdf.innerHTML;
         btnPdf.innerHTML = `<i class="bx bx-loader bx-spin"></i> Generando...`;
@@ -310,31 +332,23 @@ if (btnPdf) {
             const { jsPDF } = window.jspdf;
             const docPdf = new jsPDF();
 
-            // 1. CARGA DINÁMICA DEL FONDO
-            // Asegurate de poner el nombre correcto de tu archivo aquí
             const backgroundUrl = "assets/images/membretada-vertical.png"; 
             const imgData = await cargarImagenDesdeUrl(backgroundUrl);
 
-            // 2. INSERTAR IMAGEN (Si se cargó correctamente)
             if (imgData) {
-                // 'JPEG' o 'PNG' según tu archivo. 
-                // 0, 0 son las coordenadas X, Y. 
-                // 210, 297 es el tamaño A4 en mm.
                 docPdf.addImage(imgData, 'PNG', 0, 0, 210, 297); 
             }
 
-            // 3. DATOS DEL TEXTO
             const nombre = document.getElementById('miNombre').value || "Agente";
             const oficina = document.getElementById('miOficina').value || "";
             const year = document.getElementById('selector-plan-anio').value || new Date().getFullYear();
             const fecha = new Date().toLocaleDateString();
             
-            // CONFIGURACIÓN DE TEXTO (Ajustá las coordenadas 'y' según tu diseño de fondo)
             let y = 70; const m = 20; const colV = 115;
 
             const title = (t) => { 
                 docPdf.setFontSize(14); 
-                docPdf.setTextColor(255, 126, 0); // Naranja Imalá
+                docPdf.setTextColor(255, 126, 0); 
                 docPdf.setFont("helvetica", "bold"); 
                 docPdf.text(t, m, y); 
                 y += 12; 
@@ -350,7 +364,6 @@ if (btnPdf) {
                 y += 8; 
             };
 
-            // CABECERA
             docPdf.setFontSize(12); docPdf.setTextColor(0,0,0); docPdf.setFont("helvetica","bold");
             docPdf.text(`Agente: ${nombre}`, m, 45);
             docPdf.text(`Oficina: ${oficina}`, m, 51);
@@ -359,7 +372,6 @@ if (btnPdf) {
 
             const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
-            // BLOQUE 1
             title("Mis Efectividades:");
             item("Objetivo anual:", fmt.format(datos.objetivo));
             item("Ticket Promedio:", fmt.format(datos.ticket));
@@ -372,7 +384,6 @@ if (btnPdf) {
 
             y += 12;
             
-            // BLOQUE 2
             title("Gestión Necesaria:");
             const show = (v) => `${Math.ceil(v)} Anual / ${(v/12).toFixed(1)} Mensual`;
             
@@ -388,7 +399,7 @@ if (btnPdf) {
 
         } catch (error) {
             console.error("Error generando PDF", error);
-            alert("Hubo un error al generar el PDF.");
+            Swal.fire({ icon:'error', title:'Error', text:'Hubo un error al generar el PDF.' });
         } finally {
             btnPdf.innerHTML = btnOriginalText;
             btnPdf.disabled = false;

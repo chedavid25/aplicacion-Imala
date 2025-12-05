@@ -7,6 +7,11 @@ import {
 import { app } from "./firebase-config.js";
 import { ConfigService } from "./config-service.js";
 
+import { 
+    // ... otros imports ...
+    deleteDoc 
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
 const auth = getAuth(app);
 const db = getFirestore(app);
 
@@ -226,6 +231,49 @@ async function guardarCambiosAgente() {
         bootstrap.Modal.getInstance(el('modalEditar')).hide();
         cargarDatosCompletos();
     } catch(e) { alert("Error al guardar"); }
+}
+
+// --- Eliminar Agente ---
+window.eliminarAgente = async function(uid, nombre) {
+    // 1. Preguntar confirmación
+    const result = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: `Vas a eliminar permanentemente a ${nombre}. Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f46a6a', // Rojo
+        cancelButtonColor: '#74788d', // Gris
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    // 2. Si confirma, procedemos
+    if (result.isConfirmed) {
+        try {
+            // Borrar de Firestore
+            await deleteDoc(doc(db, "planificaciones", uid));
+            
+            // Borrar tracking asociado (Opcional, si quieres limpieza profunda)
+            // (Esto requeriría saber los IDs de tracking, por ahora con borrar la planificación basta para que desaparezca de la tabla)
+
+            Swal.fire(
+                '¡Eliminado!',
+                'El agente ha sido eliminado correctamente.',
+                'success'
+            );
+            
+            // Recargar tabla
+            cargarDatosCompletos();
+            
+        } catch (error) {
+            console.error(error);
+            Swal.fire(
+                'Error',
+                'No se pudo eliminar: ' + error.message,
+                'error'
+            );
+        }
+    }
 }
 
 // --- Procesamiento ---
@@ -522,10 +570,15 @@ function renderizarTabla(lista) {
                 <td class="bg-light fw-bold text-warning">${Math.round(ag.R_Res)}</td>
                 
                 <td class="sticky-col-right">
-                    <button class="btn btn-sm btn-primary" onclick="abrirModalEditar('${ag.uid}')">
-                        <i class="mdi mdi-pencil"></i>
-                    </button>
-                </td>
+    <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-sm btn-primary" onclick="abrirModalEditar('${ag.uid}')" title="Editar">
+            <i class="mdi mdi-pencil"></i>
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarAgente('${ag.uid}', '${ag.nombreAgente}')" title="Eliminar">
+            <i class="mdi mdi-trash-can"></i>
+        </button>
+    </div>
+</td>
             </tr>`;
     });
 }

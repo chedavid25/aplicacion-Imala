@@ -1,8 +1,8 @@
-// admin-config.js - Optimizado para Escalar (Paso 5)
+// admin-config.js - Versión Final con Borrado en Cascada
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
-    getFirestore, collection, getDocs, doc, updateDoc, addDoc, query, limit, where, orderBy, startAfter
+    getFirestore, collection, getDocs, doc, updateDoc, addDoc, query, limit, where, orderBy, deleteDoc, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { app } from "./firebase-config.js";
 import { ConfigService } from "./config-service.js";
@@ -24,15 +24,12 @@ const el = (id) => document.getElementById(id);
 onAuthStateChanged(auth, async (user) => {
     if (!user) { window.location.href = "login.html"; return; }
 
-    // Verificar Rol
-    // Nota: Podríamos usar el sessionStorage del header, pero por seguridad en admin
-    // preferimos validar una vez contra Firestore al entrar.
     try {
+        // Verificar si es Admin real en base de datos o por email hardcodeado
         const snap = await getDocs(query(collection(db, "usuarios"), where("emailAuth", "==", user.email)));
         let esAdmin = (user.email === ADMIN_EMAIL);
         
         if(!esAdmin && !snap.empty) {
-            // Buscar si tiene rol admin en su documento
             snap.forEach(d => { if(d.data().rol === 'admin') esAdmin = true; });
         }
 
@@ -42,9 +39,9 @@ onAuthStateChanged(auth, async (user) => {
             return;
         }
 
-        // Si es Admin:
+        // Si es Admin, cargamos todo:
         await cargarOficinas();
-        await cargarUsuariosInicial(); // Carga optimizada (limit 20)
+        await cargarUsuariosInicial(); 
         inicializarEventos();
 
     } catch (e) { console.error(e); }
@@ -55,10 +52,7 @@ onAuthStateChanged(auth, async (user) => {
 // --------------------------------------------------
 async function cargarOficinas() {
     try {
-        const config = await ConfigService.obtenerConfiguracionCompleta();
-        // Nota: ConfigService devuelve [{nombre, usaEstacionalidad}], pero acá necesitamos editar.
-        // Así que mejor leemos la colección raw para tener los IDs de documento para poder editar/borrar.
-        
+        // Leemos la colección raw para tener los IDs y poder editar/borrar
         const snap = await getDocs(collection(db, "oficinas"));
         oficinasCache = [];
         snap.forEach(d => {
@@ -108,6 +102,7 @@ async function guardarOficina(e) {
         el("form-oficina").reset();
         el("oficina-id").value = "";
         await cargarOficinas();
+        // Usamos alert nativo o Swal si prefieres, aquí dejo alert por simpleza en config
         alert("Oficina guardada");
     } catch(err) { alert("Error al guardar oficina"); }
 }
@@ -116,12 +111,9 @@ async function guardarOficina(e) {
 // 3) GESTIÓN DE USUARIOS (OPTIMIZADA)
 // --------------------------------------------------
 
-// Carga inicial: Últimos 20 registrados o primeros 20 alfabéticos
 async function cargarUsuariosInicial() {
     mostrarLoading(true);
     try {
-        // Traer los primeros 20 usuarios ordenados por email o nombre
-        // Usamos emailAuth porque suele estar presente
         const q = query(collection(db, "usuarios"), orderBy("emailAuth"), limit(20));
         const snap = await getDocs(q);
         procesarYRenderizarUsuarios(snap);
@@ -135,14 +127,10 @@ async function buscarUsuario() {
 
     mostrarLoading(true);
     try {
-        // Búsqueda exacta por email (más rápida y barata)
         let q = query(collection(db, "usuarios"), where("emailAuth", "==", texto));
         let snap = await getDocs(q);
 
         if (snap.empty) {
-            // Si falla, intento búsqueda por nombre (prefijo)
-            // Nota: Esto requiere que el nombre en DB sea exacto al inicio (Case Sensitive en Firestore)
-            // Para producción real se recomienda Algolia, pero esto sirve para MVP
             const textoEnd = texto + '\uf8ff';
             q = query(collection(db, "usuarios"), 
                 where("nombre", ">=", texto), 
@@ -190,16 +178,30 @@ function renderizarUsuarios() {
             <td>${badgeRol(u.rol)}</td>
             <td>${u.oficina || '<span class="text-muted small">Sin Asignar</span>'}</td>
             <td class="text-end">
-                <button class="btn btn-sm btn-primary btn-abrir-modal" data-uid="${u.id}">
-                    Editar
-                </button>
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-sm btn-primary btn-abrir-modal" data-uid="${u.id}" title="Editar Rol/Oficina">
+                        <i class="mdi mdi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger btn-eliminar-usuario" 
+                        data-uid="${u.id}" 
+                        data-nombre="${u.nombre||u.emailAuth}" 
+                        data-email="${u.emailAuth || u.email}" 
+                        title="Eliminar Todo (Acceso y Datos)">
+                        <i class="mdi mdi-trash-can"></i>
+                    </button>
+                </div>
             </td>
         </tr>
     `).join("");
 
-    // Listeners
+    // Listeners Editar
     tbody.querySelectorAll(".btn-abrir-modal").forEach(b => {
         b.addEventListener("click", () => abrirModalUsuario(b.dataset.uid));
+    });
+
+    // Listeners Eliminar (Actualizado para pasar email)
+    tbody.querySelectorAll(".btn-eliminar-usuario").forEach(b => {
+        b.addEventListener("click", () => eliminarUsuarioCompleto(b.dataset.uid, b.dataset.nombre, b.dataset.email));
     });
 }
 
@@ -221,11 +223,9 @@ async function abrirModalUsuario(uid) {
     el("edit-user-email").value = user.emailAuth || user.email || "";
     el("edit-user-rol").value = user.rol || "agente";
 
-    // Llenar select de oficinas en el modal (desde cache)
     const selOficina = el("edit-user-oficina");
     selOficina.innerHTML = '<option value="">Sin asignar</option>';
     
-    // Ordenar oficinas A-Z
     const oficinasOrdenadas = [...oficinasCache].sort((a,b) => a.nombre.localeCompare(b.nombre));
     
     oficinasOrdenadas.forEach(of => {
@@ -251,7 +251,6 @@ async function guardarUsuarioDesdeModal() {
             oficina: nuevaOficina
         });
 
-        // Actualizar cache local para reflejar cambio sin recargar todo
         const uIndex = usuariosCache.findIndex(u => u.id === uid);
         if (uIndex !== -1) {
             usuariosCache[uIndex].rol = nuevoRol;
@@ -260,11 +259,11 @@ async function guardarUsuarioDesdeModal() {
         
         renderizarUsuarios();
         bootstrap.Modal.getInstance(el('modalEditarUsuario')).hide();
-        alert("Usuario actualizado correctamente.");
+        Swal.fire('Guardado', 'Usuario actualizado correctamente.', 'success');
 
     } catch (e) {
         console.error(e);
-        alert("Error al guardar cambios.");
+        Swal.fire('Error', 'No se pudieron guardar los cambios.', 'error');
     } finally {
         btn.disabled = false;
         btn.innerText = "Guardar Cambios";
@@ -287,4 +286,98 @@ function inicializarEventos() {
     });
 
     el("btn-guardar-usuario-modal").addEventListener("click", guardarUsuarioDesdeModal);
+}
+
+// --------------------------------------------------
+// 6) ELIMINAR USUARIO EN CASCADA (NUEVO)
+// --------------------------------------------------
+// --------------------------------------------------
+// 6) DAR DE BAJA USUARIO (Mantiene datos, quita acceso)
+// --------------------------------------------------
+async function eliminarUsuarioCompleto(uid, nombre, email) {
+    // Preguntamos qué tipo de eliminación quiere hacer
+    const result = await Swal.fire({
+        title: 'Gestión de Baja',
+        text: `¿Qué deseas hacer con ${nombre}?`,
+        icon: 'question',
+        showDenyButton: true,
+        showCancelButton: true,
+        confirmButtonText: 'Dar de Baja (Mantener historial)',
+        denyButtonText: 'Borrar TODO (Eliminar rastro)',
+        confirmButtonColor: '#f1b44c', // Naranja (Advertencia)
+        denyButtonColor: '#f46a6a',    // Rojo (Peligro)
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isDismissed) return; // Si cancela, no hacemos nada
+
+    // OPCIÓN 1: DAR DE BAJA (Recomendado)
+    // Borra acceso, pero mantiene los números para las estadísticas
+    if (result.isConfirmed) {
+        Swal.fire({ title: 'Procesando baja...', didOpen: () => Swal.showLoading() });
+        try {
+            const batch = writeBatch(db);
+
+            // 1. Eliminar acceso (Colección usuarios)
+            batch.delete(doc(db, "usuarios", uid));
+
+            // 2. Marcar planificación como EX-AGENTE (Para que siga sumando pero se note que no está)
+            if (email) {
+                const qPlan = query(collection(db, "planificaciones"), where("emailUsuario", "==", email));
+                const snapPlan = await getDocs(qPlan);
+                snapPlan.forEach(d => {
+                    // Le agregamos un prefijo para que se note y se vaya al fondo de la lista
+                    batch.update(d.ref, { 
+                        nombreAgente: `[EX] ${nombre} (Baja)`,
+                        oficina: `${d.data().oficina} (Histórico)` // Opcional: Para saber dónde estaba
+                    });
+                });
+            }
+
+            await batch.commit();
+            
+            // Actualizar tabla visualmente
+            usuariosCache = usuariosCache.filter(u => u.id !== uid);
+            renderizarUsuarios();
+            
+            Swal.fire('Baja Exitosa', 'El usuario ya no puede entrar, pero sus datos suman a la estadística.', 'success');
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', e.message, 'error');
+        }
+    } 
+    
+    // OPCIÓN 2: BORRADO TOTAL (Nuclear)
+    // Úsalo solo si te equivocaste al cargar el usuario o es un test
+    else if (result.isDenied) {
+        Swal.fire({ title: 'Eliminando todo...', didOpen: () => Swal.showLoading() });
+        try {
+            const batch = writeBatch(db);
+            
+            // 1. Borrar Usuario
+            batch.delete(doc(db, "usuarios", uid));
+
+            if (email) {
+                // 2. Borrar Planificaciones
+                const qPlan = query(collection(db, "planificaciones"), where("emailUsuario", "==", email));
+                const snapPlan = await getDocs(qPlan);
+                snapPlan.forEach(d => batch.delete(d.ref));
+
+                // 3. Borrar Trackeo
+                const qTrack = query(collection(db, "tracking"), where("emailUsuario", "==", email));
+                const snapTrack = await getDocs(qTrack);
+                snapTrack.forEach(d => batch.delete(d.ref));
+            }
+
+            await batch.commit();
+            
+            usuariosCache = usuariosCache.filter(u => u.id !== uid);
+            renderizarUsuarios();
+            
+            Swal.fire('Eliminado', 'Se borró todo rastro del usuario.', 'success');
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', e.message, 'error');
+        }
+    }
 }

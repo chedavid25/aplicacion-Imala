@@ -1,4 +1,4 @@
-// tracking.js - Con soporte para Transacciones Propio y Búsqueda
+// tracking.js - Versión Final con Alertas Pro
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
@@ -73,10 +73,12 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function cargarConfiguracionGlobal() {
-    const config = await ConfigService.obtenerConfiguracionCompleta();
-    FACTORES_GLOBAL = config.factores;
-    CONFIG_OFICINAS = {};
-    config.oficinas.forEach(of => { CONFIG_OFICINAS[of.nombre] = of.usaEstacionalidad; });
+    try {
+        const config = await ConfigService.obtenerConfiguracionCompleta();
+        FACTORES_GLOBAL = config.factores;
+        CONFIG_OFICINAS = {};
+        config.oficinas.forEach(of => { CONFIG_OFICINAS[of.nombre] = of.usaEstacionalidad; });
+    } catch (e) { console.error("Error config:", e); }
 }
 
 async function cargarPlanificacion() {
@@ -108,7 +110,6 @@ function recalcularObjetivosOperativos() {
     const acmCapt = (parseFloat(efec.acmCapt)||0)/100;
     const preListAcm = (parseFloat(efec.preListAcm)||0)/100;
     
-    // Desglosar transacciones
     const pctPropio = (parseFloat(efec.listingPropio)||0)/100;
     const pctBusq   = (parseFloat(efec.busquedas)||0)/100;
 
@@ -121,8 +122,8 @@ function recalcularObjetivosOperativos() {
 
     planificacionAnual.OBJETIVOS = {
         facturacion: objFact,
-        ventas_propio: ventasPropias, // Objetivo anual Propio
-        ventas_busqueda: ventasBusq,  // Objetivo anual Búsqueda
+        ventas_propio: ventasPropias, 
+        ventas_busqueda: ventasBusq,
         captaciones: captaciones,
         acm: acms,
         prelisting: prelistings
@@ -153,8 +154,8 @@ function actualizarMatriz(mesIndex) {
     const datosMes = datosTracking[`mes_${mesIndex}`];
     if (datosMes) {
         rellenarFila("facturacion", datosMes.facturacion);
-        rellenarFila("ventas_propio", datosMes.ventas_propio);     // NUEVO
-        rellenarFila("ventas_busqueda", datosMes.ventas_busqueda); // NUEVO
+        rellenarFila("ventas_propio", datosMes.ventas_propio);
+        rellenarFila("ventas_busqueda", datosMes.ventas_busqueda);
         rellenarFila("captaciones", datosMes.captaciones);
         rellenarFila("acm", datosMes.acm);
         rellenarFila("prelisting", datosMes.prelisting);
@@ -195,8 +196,6 @@ function establecerObjetivosMensuales(mesIndex) {
     }
 
     pintarObjetivo("facturacion", objetivoFact, true);
-    
-    // El resto es lineal (/12)
     pintarObjetivo("ventas_propio", planificacionAnual.OBJETIVOS.ventas_propio/12, false);
     pintarObjetivo("ventas_busqueda", planificacionAnual.OBJETIVOS.ventas_busqueda/12, false);
     pintarObjetivo("captaciones", planificacionAnual.OBJETIVOS.captaciones/12, false);
@@ -211,7 +210,6 @@ function pintarObjetivo(id, valor, esDinero) {
     if (esDinero) {
         celda.textContent = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(valor||0);
     } else {
-        // Mostramos con 1 decimal si es muy pequeño, o entero
         celda.textContent = (valor < 1 && valor > 0) ? valor.toFixed(1) : Math.ceil(valor||0);
     }
 }
@@ -258,31 +256,46 @@ async function guardarTrackingMesActual() {
 
         const datosAguardar = {
             facturacion: leerFila("facturacion"),
-            ventas_propio: leerFila("ventas_propio"),     // NUEVO
-            ventas_busqueda: leerFila("ventas_busqueda"), // NUEVO
+            ventas_propio: leerFila("ventas_propio"),
+            ventas_busqueda: leerFila("ventas_busqueda"),
             captaciones: leerFila("captaciones"),
             acm: leerFila("acm"),
             prelisting: leerFila("prelisting"),
             caracara: leerFila("caracara"),
             prebuy: leerFila("prebuy"),
             reservas: leerFila("reservas"),
+            emailUsuario: currentUser.email, // ✅ IMPORTANTE: Guardar email para poder borrar en cascada
             ultimaActualizacion: new Date().toISOString()
         };
 
         const docRef = doc(db, "tracking", `${currentUser.uid}_${year}`);
         await setDoc(docRef, { 
             [`mes_${mesIndex}`]: datosAguardar,
-            anio: parseInt(year) 
+            anio: parseInt(year),
+            emailUsuario: currentUser.email // También a nivel raíz del documento
         }, { merge: true });
 
         if (!datosTracking) datosTracking = {};
         datosTracking[`mes_${mesIndex}`] = datosAguardar;
-        alert("✅ Avance guardado.");
+        
+        // ✅ ALERTA PROFESIONAL
+        Swal.fire({
+            icon: 'success',
+            title: '¡Avance Guardado!',
+            text: 'Tus números del mes se han actualizado correctamente.',
+            timer: 2000,
+            showConfirmButton: false
+        });
+
     } catch (err) {
         console.error("Error guardando:", err);
-        alert("❌ Error al guardar.");
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo guardar. Verifica tu conexión.'
+        });
     } finally {
-        btn.innerHTML = "Guardar Avance";
+        btn.innerHTML = `<i class="bx bx-save me-1"></i> Guardar Avance del Mes`;
         btn.disabled = false;
     }
 }
@@ -292,13 +305,10 @@ function leerFila(id) {
     if (!fila) return { sem1:0, sem2:0, sem3:0, sem4:0, sem5:0, total:0 };
     
     const inputs = fila.querySelectorAll(".input-cell");
-    if (inputs.length < 5) return { sem1:0, sem2:0, sem3:0, sem4:0, sem5:0, total:0 };
-    
     let total = 0;
     const valores = [];
     
     for(let i = 0; i < 5; i++) {
-        // ✅ CORRECCIÓN: Manejar inputs vacíos y valores inválidos
         const valor = inputs[i]?.value;
         const v = (valor === '' || valor === null || valor === undefined) ? 0 : parseFloat(valor);
         const vFinal = isNaN(v) ? 0 : v;
@@ -307,11 +317,6 @@ function leerFila(id) {
     }
     
     return { 
-        sem1: valores[0], 
-        sem2: valores[1], 
-        sem3: valores[2], 
-        sem4: valores[3], 
-        sem5: valores[4], 
-        total 
+        sem1: valores[0], sem2: valores[1], sem3: valores[2], sem4: valores[3], sem5: valores[4], total 
     };
 }
